@@ -1,8 +1,14 @@
-import vuetify from "vite-plugin-vuetify";
+import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   devtools: { enabled: true },
+
+  app: {
+    head: {
+      title: "Median Telenta Raya",
+    },
+  },
 
   modules: [
     '@nuxtjs/tailwindcss',
@@ -14,10 +20,16 @@ export default defineNuxtConfig({
   },
 
   vite: {
+    vue: {
+      template: { transformAssetUrls }
+    },
     plugins: [
       vuetify({
         autoImport: true,
       }),
     ],
   },
+  css: [
+    '@/assets/global.css'
+  ],
 })
