@@ -1,0 +1,142 @@
+@use '../variables' as *;
+
+.leftSidebar {
+    border-radius: 0;
+    height: 100% !important;
+    overflow: hidden;
+    background: #1f1f1f !important;
+    color: #cfcfcf;
+    border-right: 1px solid #000;
+
+    @media screen and (max-width:1279px) {
+        height: 100% !important;
+        border-radius: 0;
+    }
+
+    .mini-icon {
+        display: none;
+    }
+
+    .mini-text {
+        display: block;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .profile-name {
+        background: rgba(0, 0, 0, 0.5);
+
+        h5 {
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+    }
+}
+
+.verticalLayout {
+    .logo {
+        @media screen and (max-width:1024px) {
+            width: auto;
+        }
+    }
+}
+.v-navigation-drawer__content{
+    overflow-y: hidden !important;
+}
+
+/*This is for the Vertical sidebar*/
+.scrollnavbar {
+    height: calc(100vh - 130px);
+
+    .v-list {
+        background: transparent;
+    }
+
+    .v-list-item {
+        position: relative;
+        background: transparent;
+        color: #b5b5b5 !important;
+        transition: background .25s ease, color .25s ease;
+    }
+
+    .v-list-item .v-icon {
+        color: #b5b5b5 !important;
+        transition: color .25s ease;
+    }
+
+    .v-list-item--active {
+        background: #2a2a2a !important;
+        color: #ff7d00 !important;
+    }
+
+    .v-list-item--active .v-icon {
+        color: #ff7d00 !important;
+    }
+
+    /* Orange left accent bar for active item */
+    .v-list-item--active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 6px;
+        bottom: 6px;
+        width: 6px;
+        background: #ff7d00;
+        border-radius: 4px;
+    }
+
+    /* Hover state: lighten bg, keep text gray unless active */
+    .v-list-item:not(.v-list-item--active):hover {
+        background: #262626 !important;
+        color: #e0e0e0 !important;
+    }
+    .v-list-item:not(.v-list-item--active):hover .v-icon {
+        color: #e0e0e0 !important;
+    }
+
+    .userbottom {
+        bottom: 0px;
+        width: 100%;
+        position:fixed;
+        z-index: 2;
+    }
+
+    .smallCap {
+        padding: 3px 12px 12px 0px !important;
+        font-weight: 500;
+        margin-top: 24px;
+        color: rgb(var(--v-theme-grey200));
+
+        &:first-child {
+            margin-top: 0 !important;
+        }
+    }
+
+    /*General Menu css*/
+    .v-list-group__items .v-list-item,
+    .v-list-item {
+        border-radius: $border-radius-root + 3px;
+        padding-inline-start: calc(12px + var(--indent-padding) / 10) !important;
+        margin: 0 0 2px;
+
+        .v-list-item__prepend {
+            margin-inline-end: 13px;
+            // position: relative;
+            z-index: 2;
+        }
+
+        .v-list-item__append {
+            position: relative;
+            z-index: 2;
+
+            .v-icon {
+                margin-inline-start: 13px;
+            }
+        }
+    }
+
+    /*This is for the dropdown*/
+    /* Remove previous complex hover/active structure for simpler dark style */
+}
+

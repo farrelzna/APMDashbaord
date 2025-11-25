@@ -1,13 +1,17 @@
 <script setup>
-import sidebarItems from '@/components/layout/Full/vertical-sidebar/sidebarItem';
+import sidebarItems from '@/components/Layout/Full/vertical-sidebar/sidebarItem';
 import { Menu2Icon, BellRingingIcon } from 'vue-tabler-icons';
 import { useUserStore } from '@/stores/User';
+import { onMounted } from 'vue';
 const sidebarMenu = shallowRef(sidebarItems);
 const sDrawer = ref(true);
 const userStore = useUserStore();
-if (userStore.user) {
-    userStore.fetchUser();
-}
+// Fetch user data on mount (was previously conditional on user ref existence, causing early access issues)
+onMounted(() => {
+    try {
+        userStore.fetchUser();
+    } catch (e) {}
+});
 </script>
 
 <template>
@@ -15,7 +19,7 @@ if (userStore.user) {
         left
         v-model="sDrawer"
         app
-        class="leftSidebar ml-sm-5 mt-sm-5 bg-containerBg"
+        class="leftSidebar"
         elevation="10"
         width="270"
     >
@@ -25,8 +29,8 @@ if (userStore.user) {
         <!-- ---------------------------------------------- -->
         <!---Navigation -->
         <!-- ---------------------------------------------- -->
-        <div class="scrollnavbar bg-containerBg overflow-y-hidden">
-            <v-list class="py-4 px-4 bg-containerBg">
+        <div class="scrollnavbar bg-black overflow-y-hidden flex flex-col h-full relative">
+            <v-list class="py-4 px-4 bg-black">
                 <!---Menu Loop -->
                 <template v-for="(item, i) in sidebarMenu">
                     <!---Item Sub Header -->
@@ -48,38 +52,14 @@ if (userStore.user) {
 
                 <!-- <Moreoption/> -->
             </v-list>
-            <span class="text-xs absolute bottom-0 p-5">APM MTR - V1</span>
-        </div>
-    </v-navigation-drawer>
-    <div class="container verticalLayout">
-        <v-app-bar elevation="0" height="70">
-            <div class="d-flex align-center justify-space-between w-100">
-                <div>
-                    <v-btn
-                        class="hidden-lg-and-up text-muted"
-                        @click="sDrawer = !sDrawer"
-                        icon
-                        variant="flat"
-                        size="small"
-                    >
-                        <Menu2Icon size="20" stroke-width="1.5" />
-                    </v-btn>
-                </div>
-                <div class="flex justify-center items-center gap-2">
-                    <!-- User Profile -->
-                    <div class="flex flex-col" dir="rtl">
-                        <b class="font-bold text-sm">{{
-                            userStore.user.full_name
-                        }}</b>
-                        <span class="font-thin text-xs">{{
-                            userStore.user.role
-                        }}</span>
-                    </div>
-                    <LayoutFullVerticalHeaderProfileDD
-                        :photo="userStore.user.photo"
-                    />
+            <div class="mt-auto px-4 py-4 border-t flex items-center gap-3">
+                <LayoutFullVerticalHeaderProfileDD :photo="userStore.user?.photo || '/images/profile/user.png'" />
+                <div class="flex flex-col">
+                    <b class="font-semibold text-sm leading-4">{{ userStore.user?.full_name || '...' }}</b>
+                    <span class="text-xs text-gray-500">{{ userStore.user?.role || '' }}</span>
                 </div>
             </div>
-        </v-app-bar>
-    </div>
+            <div class="text-xs text-center py-3 text-gray-400">APM MTR - V2</div>
+        </div>
+    </v-navigation-drawer>
 </template>

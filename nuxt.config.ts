@@ -1,12 +1,22 @@
 import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
 
-// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  devtools: { enabled: true },
+  ssr: false,
+
+  typescript: {
+    shim: false,
+  },
+
+  devtools: {
+    enabled: true,
+    timeline: {
+      enabled: true,
+    },
+  },
 
   app: {
     head: {
-      title: "Median Telenta Raya",
+      title: "Dasa Aprilindo Sentosa",
     },
   },
 
@@ -19,6 +29,23 @@ export default defineNuxtConfig({
     transpile: ["vuetify"],
   },
 
+  nitro: {
+    serveStatic: true,
+  },
+
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.API_BASE || 'http://be.talentaraya.co.id/api/v1',
+      apiMedia: process.env.API_MEDIA || 'http://be.talentaraya.co.id',
+      realtimeDelay: (() => {
+        const raw = process.env.REALTIME_DELAY ?? '';
+        const minutes = parseFloat(raw);
+        return (minutes > 0 && !isNaN(minutes) ? minutes : 5) * 60 * 1000;
+      })(),
+      keycloakUrl: process.env.KEYCLOAK_URL || 'http://192.168.18.249:8080'
+    }
+  },
+
   vite: {
     vue: {
       template: { transformAssetUrls }
@@ -29,7 +56,6 @@ export default defineNuxtConfig({
       }),
     ],
   },
-  css: [
-    '@/assets/global.css'
-  ],
+
+  css: [ '@/assets/global.css' ],
 })

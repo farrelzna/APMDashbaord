@@ -5,7 +5,7 @@ import ProductSales from '@/components/dashboards/ProductSales.vue';
 import TopPayingClients from '@/components/dashboards/TopPayingClients.vue';
 
 definePageMeta({
-    middleware: ['auth', 'nuxt-permissions'],
+    middleware: ['auth'],
 });
 </script>
 

@@ -1,0 +1,16 @@
+@use './variables' as *;
+@use 'vuetify/styles' as *;
+@use './override' as *;
+@use './layout/container' as *;
+@use './layout/sidebar' as *;
+@use './layout/topbar' as *;
+@use './components/VButtons' as *;
+@use './components/VCard' as *;
+@use './components/VInput' as *;
+@use './components/VNavigationDrawer' as *;
+@use './components/VShadow' as *;
+@use './components/VTextField' as *;
+@use './pages/dashboards' as *;
+@use './pages/authentication' as *;
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&display=swap");
+// @use 'vue3-perfect-scrollbar/dist/vue3-perfect-scrollbar.css'; // remains commented; if needed convert to standard link or keep @import

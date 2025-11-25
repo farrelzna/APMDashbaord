@@ -7,7 +7,7 @@ import {
   UserIcon
 } from 'vue-tabler-icons';
 
-import { pagePermission } from '~/utils/permissions'
+import { pagePermission } from '@/utils/permissions'
 
 export interface menu {
   header?: string;
@@ -53,12 +53,10 @@ const sidebarItem: menu[] = [
     ]
   },
   {
-    title: 'Projects',
+    title: 'Project',
     icon: BoxMultiple1Icon,
     to: '/dashboard/project',
-    permission: [
-      pagePermission.project.view
-    ]
+    permission: [pagePermission.project.view]
   },
   {
     title: 'Users',

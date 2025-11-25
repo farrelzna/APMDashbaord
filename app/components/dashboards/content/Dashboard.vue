@@ -20,8 +20,32 @@ const dashboardData = ref(null);
 const standupMeet = ref(null);
 const standupDate = ref(null);
 const projectsData = ref([]);
-const items = ref(null);
+const items = ref([]);
 const datas = ref([]);
+// Grouped metrics summary
+const summaryMetrics = computed(() =>
+    datas.value.filter(d => ['Total Client', 'Total Project', 'Total User'].includes(d.title))
+);
+const teamMetrics = computed(() =>
+    datas.value.filter(d => ['Engineer Internal', 'Engineer External'].includes(d.title))
+);
+
+// Computed: derive important project (earliest due date / first)
+const importantProject = computed(() => {
+    if (!dashboardData.value?.projects?.length) return null;
+    return [...dashboardData.value.projects].sort(
+        (a, b) => new Date(a.end_date) - new Date(b.end_date)
+    )[0];
+});
+
+// Computed: simplified project list (sorted by end_date)
+const projectList = computed(() => {
+    if (!dashboardData.value?.projects?.length) return [];
+    return [...dashboardData.value.projects].sort(
+        (a, b) => new Date(a.end_date) - new Date(b.end_date)
+    );
+});
+
 
 const handleLogout = () => {
     dialogLogout.value = true;
@@ -31,6 +55,8 @@ const confirmLogout = () => {
     userStore.logout();
     dialogLogout.value = false;
 };
+
+const hasDashboardData = computed(() => !!dashboardData.value);
 
 onMounted(async () => {
     await fetchData();
@@ -69,9 +95,14 @@ const fetchData = async () => {
                 value: dashboardData.value.total_client,
             },
             {
-                title: 'Total Projects',
+                title: 'Total Project',
                 icon: 'mdi-folder-multiple-outline',
                 value: dashboardData.value.total_projects,
+            },
+            {
+                title: 'Total User',
+                icon: 'mdi-account-multiple-outline',
+                value: dashboardData.value.total_user,
             },
             {
                 title: 'Engineer Internal',
@@ -79,7 +110,7 @@ const fetchData = async () => {
                 value: dashboardData.value.total_engineer_internal,
             },
             {
-                title: 'Engineer Eksternal',
+                title: 'Engineer External',
                 icon: 'mdi-account-arrow-right-outline',
                 value: dashboardData.value.total_engineer_eksternal,
             },
@@ -225,321 +256,263 @@ await fetchData();
             Logout
         </v-btn>
     </div>
-    <v-row
-        class="w-full h-screen max-sm:h-auto"
-        :class="isScroll ? 'overflow-hidden' : 'overflow-visible'"
-        style="margin: 0 !important"
-        v-if="dashboardData.length !== 0"
-    >
-        <v-col
-            class="max-h-full"
-            :class="isDashboard ? '' : 'order-md-last'"
-            v-if="dashboardData.projects.length !== 0"
-        >
-            <div
-                class="flex flex-col gap-2 h-full overflow-auto"
-                ref="scrollProjects"
-            >
-                <div
-                    class="shadow-lg rounded-xl"
-                    v-for="project in dashboardData.projects"
-                    :key="project.id"
-                    v-auto-animate
+
+    <div v-if="hasDashboardData" class="w-full flex flex-col gap-4">
+        <!-- Banner -->
+        <v-card class="rounded-xl overflow-hidden" elevation="4">
+            <div class="bg-orange-600 text-white p-6 md:p-8">
+                <div class="text-sm mb-2">Dasa Aprlindo Sentosa</div>
+                <h2 class="text-xl md:text-2xl font-bold leading-snug">
+                    Most Reliable and Trusted<br />Technology Company
+                </h2>
+                <v-btn rounded="lg" class="mt-4"
+                    :style="{
+                        backgroundColor: '#000',
+                        color: '#fff'
+                    }" 
+                    variant="flat" href="https://daas.co.id/"
                 >
-                    <UiProjectCard
-                        :projectData="project"
-                        :color="getStatusColor(project.status)"
-                    >
-                        <div class="w-full flex items-center justify-between">
-                            <div class="flex gap-2 justify-center items-center">
-                                <span>PM: </span>
-                                <v-avatar
-                                    v-if="project.pm_str"
-                                    :image="
-                                        config.public.apiMedia +
-                                        project.pm_str.photo
-                                    "
-                                    class="border-black border-2"
-                                ></v-avatar>
-                                <span v-else>-</span>
+                    Join now <v-icon icon="mdi-arrow-right" size="sm" class="ml-1" />
+                </v-btn>
+            </div>
+        </v-card>
+
+        <v-row class="gy-4" style="margin:0 !important">
+            <!-- Left Column -->
+            <v-col cols="7" class="flex flex-col gap-4">
+                <!-- Important Project Card -->
+                <v-card v-if="importantProject" class="px-6 py-4 rounded-xl" elevation="2">
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-4 min-w-0">
+                            <div size="56" class="bg-red-100 rounded-full flex justify-center items-center w-14 h-14">
+                                <v-icon icon="mdi-alert" color="error" />
                             </div>
-                            <div class="flex gap-2 justify-center items-center">
-                                <span>Team: </span>
-                                <AvatarGroup
-                                    :users="project.engineer"
-                                    :pm="project.pm_str"
-                                />
+                            <div class="flex flex-col truncate">
+                                <span class="text-[11px] text-gray-500 leading-4">Last/Due/Important Project</span>
+                                <h3 class="font-bold text-lg leading-5 truncate uppercase">{{ importantProject.name }}</h3>
+                                <span class="text-xs text-gray-500 uppercase tracking-wide truncate">{{ importantProject.customer_str.name }}</span>
                             </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-xs text-gray-600">Due date {{ importantProject.end_date }}</span>
                             <v-chip
-                                :class="'text-body-2'"
-                                :color="getDueDateColor(project.end_date).color"
                                 size="small"
-                                :variant="
-                                    getDueDateColor(project.end_date).variant
-                                "
+                                class="text-body-2"
+                                :color="getStatusColor(importantProject.status)"
+                                variant="outlined"
                             >
-                                Due date {{ project.end_date }}
+                                {{ importantProject.status }}
                             </v-chip>
                         </div>
-                        <div class="py-1 border-t">
-                            <v-divider v-if="project.finances.length">
-                                <strong>Finance</strong>
-                            </v-divider>
-                            <span class="pt-5 font-bold">Finance</span>
-                            <div
-                                v-for="finance in project.finances"
-                                :key="finance"
-                            ></div>
-                            <v-timeline density="compact" side="end">
-                                <v-timeline-item
-                                    size="small"
-                                    class="relative"
-                                    v-for="finance in project.finances"
-                                    :dot-color="
-                                        getDueDateColor(finance.date_of_payment)
-                                            .color
-                                    "
-                                >
-                                    <div
-                                        class="d-flex items-center gap-2 justify-between"
-                                    >
-                                        <div class="flex flex-col">
-                                            <strong>{{ finance.name }}</strong>
-                                            <span class="font-thin text-xs">{{
-                                                finance.status
-                                            }}</span>
-                                        </div>
-                                        <v-chip
-                                            variant="flat"
-                                            :color="
-                                                getDueDateColor(
-                                                    finance.date_of_payment
-                                                ).color
-                                            "
-                                            :variant="
-                                                getDueDateColor(
-                                                    finance.date_of_payment
-                                                ).variant
-                                            "
-                                            class="text-body-6"
-                                            size="small"
-                                        >
-                                            <span class="text-xs">
-                                                Due date
-                                                {{ finance.date_of_payment }}
-                                            </span>
-                                        </v-chip>
-                                    </div>
-                                </v-timeline-item>
-                            </v-timeline>
-                            <v-divider v-if="project.project_status.length">
-                                <strong>Project Status</strong>
-                            </v-divider>
-                            <v-timeline density="compact" side="end">
-                                <v-timeline-item
-                                    :dot-color="getStatusColor(status.status)"
-                                    size="small"
-                                    v-for="status in project.project_status"
-                                >
-                                    <div
-                                        class="d-flex items-center gap-2 justify-between"
-                                    >
-                                        <strong>{{
-                                            $formatDate(status.date_submit)
-                                        }}</strong>
-                                        <div class="w-40">
-                                            <strong>{{
-                                                status.description
-                                            }}</strong>
-                                        </div>
-                                        <v-chip
-                                            variant="flat"
-                                            :color="
-                                                getStatusColor(status.status)
-                                            "
-                                            class="text-body-6"
-                                            size="small"
-                                        >
-                                            <span class="text-xs">
-                                                {{ status.status }}
-                                            </span>
-                                        </v-chip>
-                                    </div>
-                                </v-timeline-item>
-                            </v-timeline>
-                        </div>
-                    </UiProjectCard>
-                </div>
-            </div>
-        </v-col>
-        <v-col
-            :cols="isDashboard ? '4' : '12'"
-            :md="isDashboard ? '4' : '12'"
-            class="max-h-full p-5"
-            :class="isDashboard ? '' : 'order-md-last'"
-            v-else
-        >
-            <v-card class="w-full h-full p-5">
-                <div class="flex justify-center items-center h-full p-5">
-                    <h1>No project found</h1>
-                </div>
-            </v-card>
-        </v-col>
-        <v-col
-            :cols="isDashboard ? '8' : '12'"
-            :md="isDashboard ? '8' : '12'"
-            class="max-h-full flex flex-col w-full h-full"
-        >
-            <v-row>
-                <v-col
-                    cols="6"
-                    md="3"
-                    v-for="data in datas"
-                    :key="data.title"
-                    v-auto-animate
-                >
-                    <div class="shadow-lg rounded-xl">
-                        <UiParentCard :title="data.title">
-                            <div class="w-full text-center text-4xl font-bold">
-                                <v-icon :icon="data.icon" size="lg"></v-icon>
-                                <span>{{ data.value }}</span>
-                            </div>
-                        </UiParentCard>
                     </div>
-                </v-col>
-            </v-row>
-            <v-row class="h-full xl:overflow-hidden">
-                <v-col cols="12" md="7" class="h-full">
-                    <div
-                        class="flex flex-col gap-5 overflow-auto h-full justify-center items-center"
-                    >
-                        <ProjectStatistics
-                            :data="dashboardData.project_status"
-                            class="shadow-xl"
-                        />
-                        <v-card
-                            class="h-full w-full"
-                            v-if="dashboardData.engineers"
-                        >
-                            <div
-                                class="w-full h-full overflow-auto"
-                                ref="scrollWorkload"
-                            >
-                                <v-card
-                                    class="w-full min-h-full flex flex-col shadow-xl"
-                                    title="Engineer's Workload"
+                </v-card>
+                
+                <div class="grid grid-cols-2 gap-6 items-stretch">
+                    <!-- analytics -->
+                    <div class="flex flex-col h-full">
+                        <v-card class="col-span-5 px-2 py-4 rounded-2xl h-full flex flex-col" elevation="2">
+                            <v-row no-gutters>
+                                <v-col cols="12" class="mb-2">
+                                    <h4 class="font-semibold">Projects Analytics</h4>
+                                </v-col>
+                                <!-- Placeholder for analytics chart -->
+                                <v-col cols="12" class="mb-4">
+                                    <ProjectStatistics :data="dashboardData.project_status" />
+                                </v-col>
+                            </v-row>
+                        </v-card>
+                    </div>
+                    <div class="flex flex-col gap-6 h-full">
+                        <!-- summary -->
+                        <v-card class="col-span-7 px-6 py-5 rounded-2xl flex-1" elevation="2">
+                            <div class="grid grid-cols-3 gap-4 text-center">
+                                <div
+                                    v-for="datas in summaryMetrics"
+                                    :key="datas.title"
+                                    class="flex flex-col items-center"
                                 >
-                                    <div
-                                        class="flex justify-between items-center px-5 gap-2 py-2"
-                                        v-for="data in dashboardData.engineers"
-                                        v-auto-animate
-                                    >
-                                        <div class="engineer flex gap-2">
-                                            <v-avatar
-                                                :image="
-                                                    apiMedia +
-                                                    data.engineer.photo
-                                                "
-                                            />
-                                            <div class="info">
-                                                <h1
-                                                    class="font-bold capitalize"
-                                                >
-                                                    {{
-                                                        data.engineer.full_name
-                                                    }}
-                                                </h1>
-                                                <span class="text-xs font-thin"
-                                                    >{{
-                                                        data.engineer.job_titles
-                                                    }}
-                                                    -
-                                                    <strong>{{
-                                                        data.projects
-                                                    }}</strong>
-                                                    Project</span
-                                                >
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="w-52 flex justify-between items-center gap-2"
-                                        >
-                                            <div class="w-5/6">
-                                                <v-progress-linear
-                                                    :model-value="data.workload"
-                                                ></v-progress-linear>
-                                            </div>
-                                            <span>{{ data.workload }}%</span>
+                                    <span class="text-sm text-gray-600 font-medium">{{ datas.title }}</span>
+                                    <div class="flex items-center mt-2">
+                                        <v-icon :icon="datas.icon" size="30" class="mr-2" />
+                                        <span class="text-xl font-semibold">{{ datas.value }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <v-divider class="my-5" />
+                            <h4 class="text-xl font-semibold mb-4">Team</h4>
+                            <div class="flex">
+                                <div
+                                    v-for="datas in teamMetrics"
+                                    :key="datas.title"
+                                    class="flex flex-row items-center "
+                                >
+                                    <span class="text-sm text-gray-600 font-medium leading-4">{{ datas.title }}</span>
+                                    <div class="flex items-center ml-4 mr-8">
+                                        <v-icon :icon="datas.icon" size="30"/>
+                                        <span class="text-xl font-semibold">{{ datas.value }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </v-card>
+                        <!-- Recent Activities -->
+                        <v-card class="px-6 py-4 rounded-xl flex-1" elevation="2">
+                            <h4 class="font-semibold mb-4">Recent Activities</h4>
+                            <div class="flex flex-col gap-4">
+                                <div class="flex justify-between items-start"> <!--v-for="act in recentActivities" :key="act.project + act.date"-->
+                                    <div class="flex items-start gap-3">
+                                        <v-avatar size="30" color="primary"></v-avatar>
+                                        <div>
+                                            <div class="text-sm font-medium">Type (Add Project)</div>
+                                            <div class="text-xs text-gray-500">name user</div>
                                         </div>
                                     </div>
-                                </v-card>
+                                    <div class="text-right text-xs">
+                                        <div>date 2025-10-12</div>
+                                        <div class="text-green-600">description (success)</div>
+                                    </div>
+                                </div>
                             </div>
                         </v-card>
                     </div>
-                </v-col>
-                <v-col cols="12" md="5" class="h-full">
-                    <v-card class="h-full w-full">
+                </div>
+
+                <!-- Engineer Workload -->
+                <v-card v-if="dashboardData?.engineers" class="px-6 py-4 rounded-xl" elevation="2">
+                    <h4 class="font-semibold mb-4">Engineer's workload</h4>
+                    <!-- Scrollable workload list -->
+                    <div class="flex flex-col gap-4 max-h-80 overflow-y-auto pr-2" ref="scrollWorkload">
                         <div
-                            class="h-full w-full overflow-auto"
-                            ref="scrollStandup"
+                            v-for="eng in dashboardData.engineers"
+                            :key="eng.engineer.id"
+                            class="flex justify-between items-center"
                         >
-                            <v-card
-                                class="min-h-full"
-                                v-if="dashboardData.standup.length !== 0"
-                            >
-                                <v-card-title>{{
-                                    `Daily Update (${items.length})`
-                                }}</v-card-title>
-                                <v-card-subtitle
-                                    >{{ $getDayName(standupDate) }} -
-                                    {{
-                                        $formatDate(standupDate)
-                                    }}</v-card-subtitle
-                                >
-                                <ul class="divide-y divide-gray-300">
-                                    <li
-                                        v-for="(item, index) in items"
-                                        :key="index"
-                                        class="py-4 gap-5 flex items-start p-5"
-                                        v-auto-animate
-                                    >
-                                        <div
-                                            class="flex items-center bg-bluesea-200 rounded-xl"
-                                        >
-                                            <v-avatar
-                                                :image="item.prependAvatar"
-                                            ></v-avatar>
-                                        </div>
-                                        <div class="flex flex-col w-full">
-                                            <h3
-                                                class="text-lg font-medium text-gray-900"
-                                            >
-                                                {{ item.title }}
-                                            </h3>
-                                            <div
-                                                v-html="item.subtitle"
-                                                class="mt-2"
-                                            ></div>
-                                        </div>
-                                        <hr
-                                            class="mt-4"
-                                            v-if="index !== items.length - 1"
-                                        />
-                                    </li>
-                                </ul>
-                            </v-card>
-                            <div
-                                v-else
-                                class="flex justify-center items-center h-full"
-                            >
-                                <h1>No daily update</h1>
+                            <div class="flex items-center gap-3">
+                                <v-avatar :image="apiMedia + eng.engineer.photo" size="40" />
+                                <div>
+                                    <div class="font-medium">{{ eng.engineer.full_name }}</div>
+                                    <div class="text-xs text-gray-500">{{ eng.engineer.job_titles }} - <strong>{{ eng.projects }}</strong> Project</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 w-56">
+                                <v-progress-linear :model-value="eng.workload" height="6" rounded />
+                                <span class="text-xs">{{ eng.workload }}%</span>
                             </div>
                         </div>
-                    </v-card>
-                </v-col>
-            </v-row>
-        </v-col>
-    </v-row>
+                    </div>
+                </v-card>
+            </v-col>
+
+            <!-- Right Column: Project List -->
+            <v-col cols="5" class="flex flex-col gap-4">
+                <v-card class="p-5" elevation="2">
+                    <h4 class="font-semibold m-4">Project list</h4>
+                    <v-divider></v-divider>
+                    <div class="flex flex-col gap-6" ref="scrollProjects">
+                        <div
+                             v-for="project in dashboardData.projects"
+                            :key="project.id"
+                            v-auto-animate
+                            class=" p-4"
+                        >
+                            <UiProjectCard
+                                :projectData="project"
+                                :color="getStatusColor(project.status)"
+                            >
+                                <div class="w-full flex items-center justify-between mb-2">
+                                    <div class="flex gap-2 justify-center items-center">
+                                        <span>PM: </span>
+                                        <v-avatar
+                                            v-if="project.pm_str"
+                                            :image="
+                                                config.public.apiMedia +
+                                                project.pm_str.photo
+                                            "
+                                            class="border-black border-2"
+                                        ></v-avatar>
+                                        <span v-else>-</span>
+                                    </div>
+                                    <div class="flex gap-2 justify-center items-center">
+                                        <span>Team: </span>
+                                        <AvatarGroup
+                                            :users="project.engineer"
+                                            :pm="project.pm_str"
+                                        />
+                                    </div>
+                                    <v-chip
+                                        class="text-body-2"
+                                        :color="getStatusColor(project.status)"
+                                        :variant="['in progress','complete'].includes(project.status.toLowerCase()) ? 'outlined' : 'flat'"
+                                        size="small"
+                                    >
+                                        {{ project.status }}
+                                    </v-chip>
+                                </div>
+                                <div class="py-1 border-t">
+                                    <div class="flex p-2">
+                                        <div class="w-24 pr-2 pt-2 text-sm font-medium">Finance:</div>
+                                        <v-timeline density="compact" side="end" class="flex-1">
+                                            <v-timeline-item
+                                                v-for="finance in project.finances"
+                                                :key="finance.id || finance.name"
+                                                size="small"
+                                                :dot-color="getDueDateColor(finance.date_of_payment).color"
+                                            >
+                                                <div class="flex items-center justify-between gap-4">
+                                                    <div class="flex flex-col">
+                                                        <strong>{{ finance.name }}</strong>
+                                                        <span class="text-xs font-thin">{{ finance.status }}</span>
+                                                    </div>
+                                                    <v-chip
+                                                        :color="getDueDateColor(finance.date_of_payment).color"
+                                                        variant="flat"
+                                                        class="text-body-6"
+                                                        size="small"
+                                                    >
+                                                        <span class="text-xs">Due date {{ finance.date_of_payment }}</span>
+                                                    </v-chip>
+                                                </div>
+                                            </v-timeline-item>
+                                        </v-timeline>
+                                    </div>
+                                </div>
+                                <div class="py-1 border-t">
+                                    <div class="flex p-2">
+                                        <div class="w-24 pr-2 pt-2 text-sm font-medium leading-4">Project<br/>Status:</div>
+                                        <v-timeline density="compact" side="end" class="flex-1">
+                                            <v-timeline-item
+                                                v-for="status in project.project_status"
+                                                :key="status.id || status.description + status.date_submit"
+                                                size="small"
+                                                :dot-color="getStatusColor(status.status)"
+                                            >
+                                                <div class="flex items-center justify-between gap-4">
+                                                    <div class="flex flex-col">
+                                                        <strong>{{ status.description }}</strong>
+                                                        <span class="text-xs font-thin">{{ $formatDate(status.date_submit) }}</span>
+                                                    </div>
+                                                    <v-chip
+                                                        :color="getStatusColor(status.status)"
+                                                        :variant="['in progress','complete'].includes(status.status.toLowerCase()) ? 'outlined' : 'flat'"
+                                                        size="small"
+                                                        class="text-body-6"
+                                                    >
+                                                        <span class="text-xs">{{ status.status }}</span>
+                                                    </v-chip>
+                                                </div>
+                                            </v-timeline-item>
+                                        </v-timeline>
+                                    </div>
+                                </div>
+                            </UiProjectCard>
+                        </div>
+                        <div v-if="!projectList.length" class="text-center text-sm text-gray-500">No project found</div>
+                    </div>
+                </v-card>
+            </v-col>
+        </v-row>
+    </div>
+
+    <!-- Loading Skeleton -->
     <div class="w-full flex flex-col gap-2" v-else>
         <v-row>
             <v-col>

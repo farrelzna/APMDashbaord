@@ -5,32 +5,32 @@ const props = defineProps({ item: Object, level: Number })
 
 <template>
     <!---Single Item-->
-    <div class="mb-1">
+    <div class="mb-3">
         <v-list-item
             :to="item.type === 'external' ? '' : item.to"
             :href="item.type === 'external' ? item.to : ''"
             rounded
-            class="bg-hover-primary"
-            color="primary"
+            class="bg-hover-warning"
+            color="warning"
             :ripple="false"
             :disabled="item.disabled"
             :target="item.type === 'external' ? '_blank' : ''"
         >
             <!---If icon-->
             <template v-slot:prepend>
-                <div class="navbox bg-hover-primary">
+                <div class="navbox bg-hover-warning">
                     <span class="icon-box">
                         <Icon
                             :item="item.icon"
                             :level="level"
-                            class="position-relative z-index-2 texthover-primary"
+                            class="position-relative z-index-2 texthover-warning"
                         />
                     </span>
                 </div>
             </template>
             <v-list-item-title
                 class="text-subtitle-1 font-weight-medium"
-                color="primary"
+                color="warning"
                 >{{ item.title }}</v-list-item-title
             >
             <!---If Caption-->

@@ -1,0 +1,110 @@
+/* assets/css/global.css */
+.input-field {
+  width: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  outline: none;
+  transition: all 0.2s;
+  color: #9ca3af;
+}
+.input-field:focus {
+  box-shadow: 0 1px 2px 0 rgba(60,72,88,0.08);
+  border-color: transparent;
+  outline: none;
+}
+.input-field::placeholder {
+  color: #9ca3af;
+}
+.input-field:hover {
+  border-color: #d1d5db;
+}
+.input-field:focus {
+  box-shadow: 0 1px 2px 0 rgba(60,72,88,0.08);
+  outline: none;
+}
+.btn-primary {
+  background-color: #2563eb;
+  color: #fff;
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+  outline: none;
+  border: none;
+}
+.btn-primary:hover {
+  background-color: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(60,72,88,0.12);
+  transform: scale(0.98);
+}
+.btn-primary:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.btn-secondary {
+  background-color: #f3f4f6;
+  color: #374151;
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+  outline: none;
+  border: none;
+}
+.btn-secondary:hover {
+  background-color: #e5e7eb;
+  box-shadow: 0 1px 2px 0 rgba(60,72,88,0.08);
+  transform: scale(0.98);
+}
+.btn-secondary:focus {
+  outline: 2px solid #6b7280;
+  outline-offset: 2px;
+}
+.card {
+  background: #fff;
+  transition: all 0.3s;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+.error-text {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+
+/* Scrollbar styles for webkit-based browsers */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #5885f7;
+}
+
+body {
+    background: #f1f4fa !important;
+}
+
+.toggle.v-input--is-disabled.v-text-field--outline .v-input__slot {
+    border-color: red !important;
+}
