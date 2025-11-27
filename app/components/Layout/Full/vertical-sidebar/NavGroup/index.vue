@@ -10,7 +10,7 @@ const props = defineProps({ item: Object })
             ><DotsIcon size="16" stroke-width="1.5" class="iconClass"
         /></span>
         <span
-            class="mini-text font-weight-semibold pl-2 text-medium-emphasis text-uppercase"
+            class="mini-text font-weight-semibold pl-12 text-[#696969] text-xs"
             >{{ props.item.header }}</span
         >
     </v-list-subheader>

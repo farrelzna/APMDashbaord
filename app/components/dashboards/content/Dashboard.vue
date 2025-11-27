@@ -259,33 +259,30 @@ await fetchData();
 
     <div v-if="hasDashboardData" class="w-full flex flex-col gap-4">
         <!-- Banner -->
-        <v-card class="rounded-xl overflow-hidden" elevation="4">
-            <div class="bg-orange-600 text-white p-6 md:p-8">
-                <div class="text-sm mb-2">Dasa Aprlindo Sentosa</div>
-                <h2 class="text-xl md:text-2xl font-bold leading-snug">
+        <div class="bg-[#Ff5f00] rounded-xl p-8 shadow-sm">
+            <div class="max-w-2xl">
+                <div class="text-white/80 text-sm font-semibold mb-2">Dasa Aprindo Sentosa</div>
+                <h2 class="text-white text-2xl font-bold  mb-3">
                     Most Reliable and Trusted<br />Technology Company
                 </h2>
-                <v-btn rounded="lg" class="mt-4"
-                    :style="{
-                        backgroundColor: '#000',
-                        color: '#fff'
-                    }" 
-                    variant="flat" href="https://daas.co.id/"
-                >
-                    Join now <v-icon icon="mdi-arrow-right" size="sm" class="ml-1" />
-                </v-btn>
+                <NuxtLink to="/dashboard/project">
+                    <button class="bg-black text-white rounded-xl text-sm font-medium px-6 py-2 scale-100 hover:scale-105 transition-transform duration-200 flex items-center">
+                        New Project
+                         <v-icon icon="mdi-arrow-right" size="small" class="ml-2" />
+                    </button>
+                </NuxtLink>
             </div>
-        </v-card>
+        </div>
 
         <v-row class="gy-4" style="margin:0 !important">
             <!-- Left Column -->
-            <v-col cols="7" class="flex flex-col gap-4">
+            <v-col cols="7" class="flex flex-col gap-4 px-0">
                 <!-- Important Project Card -->
-                <v-card v-if="importantProject" class="px-6 py-4 rounded-xl" elevation="2">
+                <v-card v-if="importantProject" class="px-6 py-4 border border-black" elevation="0">
                     <div class="flex items-center justify-between w-full">
                         <div class="flex items-center gap-4 min-w-0">
-                            <div size="56" class="bg-red-100 rounded-full flex justify-center items-center w-14 h-14">
-                                <v-icon icon="mdi-alert" color="error" />
+                            <div size="56" class="bg-red-100 rounded-xl flex justify-center items-center w-14 h-14">
+                                <v-icon icon="mdi-calendar-alert" color="error" />
                             </div>
                             <div class="flex flex-col truncate">
                                 <span class="text-[11px] text-gray-500 leading-4">Last/Due/Important Project</span>
@@ -293,7 +290,7 @@ await fetchData();
                                 <span class="text-xs text-gray-500 uppercase tracking-wide truncate">{{ importantProject.customer_str.name }}</span>
                             </div>
                         </div>
-                        <div class="flex flex-col items-end gap-1">
+                        <div class="flex flex-col items-end gap-2 text-right">
                             <span class="text-xs text-gray-600">Due date {{ importantProject.end_date }}</span>
                             <v-chip
                                 size="small"
@@ -307,13 +304,13 @@ await fetchData();
                     </div>
                 </v-card>
                 
-                <div class="grid grid-cols-2 gap-6 items-stretch">
+                <div class="grid grid-cols-2 gap-4 items-stretch">
                     <!-- analytics -->
                     <div class="flex flex-col h-full">
-                        <v-card class="col-span-5 px-2 py-4 rounded-2xl h-full flex flex-col" elevation="2">
+                        <v-card class="col-span-5 rounded-2xl h-full flex flex-col border border-gray-300" elevation="0">
                             <v-row no-gutters>
                                 <v-col cols="12" class="mb-2">
-                                    <h4 class="font-semibold">Projects Analytics</h4>
+                                    
                                 </v-col>
                                 <!-- Placeholder for analytics chart -->
                                 <v-col cols="12" class="mb-4">
@@ -322,9 +319,9 @@ await fetchData();
                             </v-row>
                         </v-card>
                     </div>
-                    <div class="flex flex-col gap-6 h-full">
+                    <div class="flex flex-col gap-4 h-full">
                         <!-- summary -->
-                        <v-card class="col-span-7 px-6 py-5 rounded-2xl flex-1" elevation="2">
+                        <v-card class="col-span-7 px-6 py-5 rounded-2xl flex-1 border border-gray-300" elevation="0">
                             <div class="grid grid-cols-3 gap-4 text-center">
                                 <div
                                     v-for="datas in summaryMetrics"
@@ -355,7 +352,7 @@ await fetchData();
                             </div>
                         </v-card>
                         <!-- Recent Activities -->
-                        <v-card class="px-6 py-4 rounded-xl flex-1" elevation="2">
+                        <v-card class="px-6 py-4 rounded-sm flex-1 border border-gray-300" elevation="0">
                             <h4 class="font-semibold mb-4">Recent Activities</h4>
                             <div class="flex flex-col gap-4">
                                 <div class="flex justify-between items-start"> <!--v-for="act in recentActivities" :key="act.project + act.date"-->
@@ -377,7 +374,7 @@ await fetchData();
                 </div>
 
                 <!-- Engineer Workload -->
-                <v-card v-if="dashboardData?.engineers" class="px-6 py-4 rounded-xl" elevation="2">
+                <v-card v-if="dashboardData?.engineers" class="px-6 py-4 rounded-sm border border-gray-300" elevation="0">
                     <h4 class="font-semibold mb-4">Engineer's workload</h4>
                     <!-- Scrollable workload list -->
                     <div class="flex flex-col gap-4 max-h-80 overflow-y-auto pr-2" ref="scrollWorkload">
@@ -403,11 +400,11 @@ await fetchData();
             </v-col>
 
             <!-- Right Column: Project List -->
-            <v-col cols="5" class="flex flex-col gap-4">
-                <v-card class="p-5" elevation="2">
+            <v-col cols="5" class="flex flex-col gap-4 pr-0">
+                <v-card class="p-5 border border-gray-300 rounded-sm h-full" elevation="0">
                     <h4 class="font-semibold m-4">Project list</h4>
                     <v-divider></v-divider>
-                    <div class="flex flex-col gap-6" ref="scrollProjects">
+                    <div class="flex flex-col gap-6 h-full" ref="scrollProjects">
                         <div
                              v-for="project in dashboardData.projects"
                             :key="project.id"
@@ -452,7 +449,7 @@ await fetchData();
                                         <div class="w-24 pr-2 pt-2 text-sm font-medium">Finance:</div>
                                         <v-timeline density="compact" side="end" class="flex-1">
                                             <v-timeline-item
-                                                v-for="finance in project.finances"
+                                                v-for="finance in project.finance"
                                                 :key="finance.id || finance.name"
                                                 size="small"
                                                 :dot-color="getDueDateColor(finance.date_of_payment).color"

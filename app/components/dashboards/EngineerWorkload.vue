@@ -1,5 +1,5 @@
 <template>
-  <div class="flex w-full h-auto px-5 p-3 rounded-xl items-center gap-5">
+  <div class="flex w-full h-auto px-5 p-3 rounded-xs items-center gap-5">
     <div class="profile flex gap-2 justify-center items-center w-1/2">
       <UAvatar
         size="lg"

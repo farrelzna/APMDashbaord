@@ -7,11 +7,11 @@ const BLUE_THEME: ThemeTypes = {
         'border-color': '#e5eaef'
     },
     colors: {
-        primary: '#0085db',
+        primary: '#FF5F00',
         secondary: '#707a82',
         info: '#46caeb',
         success: '#4bd08b',
-        warning: '#ff9100ff',
+        warning: '#FF5F00',
         error: '#fb977d',
         indigo: '#8763da',
         lightprimary: '#e5f3fb',
@@ -27,7 +27,7 @@ const BLUE_THEME: ThemeTypes = {
         inputBorder: '#efe5dfff',
         containerBg: '#ffffffff',
         background: '#000000ff',
-        hoverColor: '#ff7d00',
+        hoverColor: '#FF5F00',
         surface: '#fff',
         grey100: '#707a82',
         grey200: '#111c2d',

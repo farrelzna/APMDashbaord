@@ -1,90 +1,44 @@
 <template>
     <v-skeleton-loader
         :loading="loading"
-        class="pa-3"
+        class="pa-4"
         :loading-text="'Loading...'"
     >
         <template v-slot:default>
-            <v-card-item>
-                <v-col>
-                    <v-raw cols="12" md="7" sm="7">
-                        <div class="flex mt-2">
-                            <v-col>
-                                <v-row cols="6" sm="6" class="mb-5">
-                                    <div
-                                        class="flex flex-col justify-center relative pl-5"
-                                    >
-                                        <span>Maintenance</span>
-                                        <span class="font-bold text-3xl">{{
-                                            props.data['Maintenance'] ?? 0
-                                        }}</span>
-                                        <span
-                                            class="absolute -left-0 w-2 bg-bluesea-500 h-[90%] rounded-xl"
-                                        ></span>
-                                    </div>
-                                </v-row>
-                                <v-row cols="6" sm="6">
-                                    <div
-                                        class="flex flex-col justify-center relative pl-5"
-                                    >
-                                        <span>Complete</span>
-                                        <span class="font-bold text-3xl">{{
-                                            props.data['Complete'] ?? 0
-                                        }}</span>
-                                        <span
-                                            class="absolute -left-0 w-2 bg-emerald-500 h-[90%] rounded-xl"
-                                        ></span>
-                                    </div>
-                                </v-row>
-                            </v-col>
-                            <v-col>
-                                <v-row cols="6" sm="6" class="mb-5">
-                                    <div
-                                        class="flex flex-col justify-center relative pl-5"
-                                    >
-                                        <span>On-going</span>
-                                        <span class="font-bold text-3xl">{{
-                                            props.data['In Progress'] ?? 0
-                                        }}</span>
-                                        <span
-                                            class="absolute -left-0 w-2 bg-amber-500 h-[90%] rounded-xl"
-                                        ></span>
-                                    </div>
-                                </v-row>
-                                <v-row cols="6" sm="6">
-                                    <div
-                                        class="flex flex-col justify-center relative pl-5"
-                                    >
-                                        <span>Almost Due</span>
-                                        <span class="font-bold text-3xl">{{
-                                            props.data['Almost Due'] ?? 0
-                                        }}</span>
-                                        <span
-                                            class="absolute -left-0 w-2 bg-rose-500 h-[90%] rounded-xl"
-                                        ></span>
-                                    </div>
-                                </v-row>
-                            </v-col>
-                        </div>
-                    </v-raw>
-                    <v-raw
-                        cols="12"
-                        md="5"
-                        sm=""
-                        class=" flex justify-center items-center mt-5"
-                    >
-                        <div
-                            class="d-flex align-center flex-shrink-0 justify-center items-center flex"
-                        >
-                            <apexchart
-                                type="area"
-                                height="250"
-                                :options="chartOptions"
-                                :series="chartSeries"
-                            ></apexchart>
-                        </div>
-                    </v-raw>
-                </v-col>
+            <v-card-item class="pa-0">
+                <!-- Metrics Grid 2x2 -->
+                <div class="pa-6" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 20px;">
+                    
+                        <h4 class="font-semibold">Projects Analytics</h4>
+                    
+                    <div>
+                        <div class="text-caption text-grey mb-1">Maintenance</div>
+                        <div class="text-h4 font-weight-medium">{{ props.data['Maintenance'] ?? 0 }}</div>
+                    </div>
+                    <div>
+                        <div class="text-caption text-grey mb-1">Complete</div>
+                        <div class="text-h4 font-weight-medium">{{ props.data['Complete'] ?? 0 }}</div>
+                    </div>
+                    <div>
+                        <div class="text-caption text-grey mb-1">On-going</div>
+                        <div class="text-h4 font-weight-medium">{{ props.data['In Progress'] ?? 0 }}</div>
+                    </div>
+                    <div>
+                        <div class="text-caption text-grey mb-1">Almost Due</div>
+                        <div class="text-h4 font-weight-medium">{{ props.data['Almost Due'] ?? 0 }}</div>
+                    </div>
+                </div>
+
+                <!-- Chart Area -->
+                <div>
+                    <apexchart
+                        type="line"
+                        height="140"
+                        width="100%"
+                        :options="chartOptions"
+                        :series="chartSeries"
+                    ></apexchart>
+                </div>
             </v-card-item>
         </template>
     </v-skeleton-loader>
@@ -134,56 +88,85 @@ watch(
 
 const chartOptions = computed(() => ({
     chart: {
-        height: 170,
-        type: 'area',
-        fontFamily: "Plus Jakarta Sans', sans-serif",
+        height: 140,
+        type: 'line',
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
         toolbar: { show: false },
-    },
-    xaxis: {
-        categories: ['Maintenance', 'Complete', 'On-going', 'Almost Due'],
-        labels: { style: { colors: '#6b7280', fontSize: '11px' } },
-    },
-    yaxis: {
-        labels: { style: { colors: '#6b7280', fontSize: '11px' } },
-        min: 0,
-        forceNiceScale: true,
+        background: 'transparent',
+        width: '100%'
     },
     stroke: {
         curve: 'smooth',
         width: 2,
-        colors: ['#ff7d00']
-    },
-    fill: {
-        type: 'gradient',
-        gradient: {
-            shade: 'light',
-            type: 'vertical',
-            shadeIntensity: 0.3,
-            gradientToColors: ['#FFA640'],
-            inverseColors: false,
-            opacityFrom: 0.55,
-            opacityTo: 0.05,
-            stops: [0, 80, 100]
-        }
+        colors: ['#6b7280']
     },
     markers: {
-        size: 6,
-        strokeWidth: 2,
-        strokeColors: '#ffffff',
-        colors: ['#139AED', '#10B981', '#F59E0B', '#F43F5E'],
-        hover: { size: 7 }
+        size: 0
+    },
+    xaxis: {
+        categories: ['Maintenance', 'Complete', 'On-going', 'Almost Due'],
+        labels: { 
+            show: true,
+            style: { 
+                colors: '#9ca3af',
+                fontSize: '11px',
+                fontWeight: 500
+            }
+        },
+        axisBorder: { show: false },
+        axisTicks: { show: false }
+    },
+    yaxis: {
+        labels: { 
+            show: false,
+            style: { 
+                colors: '#9ca3af',
+                fontSize: '11px'
+            }
+        }
     },
     dataLabels: {
-        enabled: true,
-        style: { fontSize: '11px', fontWeight: 600 }
+        enabled: false
     },
-    tooltip: {
-        theme: 'light'
+    legend: {
+        show: false
     },
     grid: {
-        strokeDashArray: 4,
-        padding: { left: 10, right: 10 }
+        borderColor: '#e5e7eb',
+        strokeDashArray: 3,
+        padding: {
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0
+        }
     },
+    tooltip: {
+        enabled: true,
+        theme: 'dark',
+        style: {
+            fontSize: '12px',
+            fontFamily: "'Plus Jakarta Sans', sans-serif"
+        },
+        y: {
+            formatter: function(value) {
+                return value + ' projects';
+            },
+            title: {
+                formatter: function(seriesName) {
+                    return seriesName;
+                }
+            }
+        },
+        custom: function({ series, seriesIndex, dataPointIndex, w }) {
+            const category = w.globals.labels[dataPointIndex];
+            const value = series[seriesIndex][dataPointIndex];
+            return `<div style="background: #1e1e1e; padding: 8px 12px; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="color: #9ca3af; font-size: 11px; margin-bottom: 4px;">${category}</div>
+                <div style="color: #fff; font-size: 14px; font-weight: 600;">${value} projects</div>
+            </div>`;
+        }
+    }
 }));
 
 const projectList = ref(null);

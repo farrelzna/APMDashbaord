@@ -3,12 +3,14 @@ html {
 }
 
 .v-application__wrap {
-    background-color: rgba(var(--v-theme-background));
+    background-color: #141414;
 }
 
 .v-main {
     min-height: 100vh;
-    padding-left:calc(var(--v-layout-left) + 20px) !important;
+    margin-left:calc(var(--v-layout-left) + 0px) !important;
+    margin-top: calc(var(--v-layout-top) + 20px) !important;
+    padding: 0 !important;
 }
 
 .v-application {

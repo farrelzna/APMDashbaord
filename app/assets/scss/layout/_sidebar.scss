@@ -4,9 +4,9 @@
     border-radius: 0;
     height: 100% !important;
     overflow: hidden;
-    background: #1f1f1f !important;
-    color: #cfcfcf;
-    border-right: 1px solid #000;
+    background: #141414 !important;
+    color: #fff;
+    border: none;
 
     @media screen and (max-width:1279px) {
         height: 100% !important;
@@ -47,7 +47,7 @@
 
 /*This is for the Vertical sidebar*/
 .scrollnavbar {
-    height: calc(100vh - 130px);
+    height: calc(100vh - 100px);
 
     .v-list {
         background: transparent;
@@ -56,22 +56,62 @@
     .v-list-item {
         position: relative;
         background: transparent;
-        color: #b5b5b5 !important;
-        transition: background .25s ease, color .25s ease;
+        color: #B3B3B3 !important;
+        transition: color .3s ease;
+        margin-bottom: 6px;
+        min-height: 44px !important;
+        overflow: hidden;
+    }
+
+    /* Progress bar fill effect from left to right */
+    .v-list-item::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 100%;
+        background: #FF5F00;
+        opacity: 0;
+        transform: scaleX(0);
+        transform-origin: left center;
+        transition: transform 0.4s ease, width 0.4s ease, opacity 0.4s ease;
+        border-radius: 8px;
+        z-index: 0;
+    }
+
+    .v-list-item:hover::after {
+        width: 100%;
+        opacity: 0.2;
+        transform: scaleX(1);
     }
 
     .v-list-item .v-icon {
-        color: #b5b5b5 !important;
-        transition: color .25s ease;
+        color: #B3B3B3 !important;
+        transition: color .3s ease;
+        position: relative;
+        z-index: 2;
+    }
+
+    .v-list-item__content,
+    .v-list-item__prepend,
+    .v-list-item__append {
+        position: relative;
+        z-index: 2;
     }
 
     .v-list-item--active {
-        background: #2a2a2a !important;
-        color: #ff7d00 !important;
+        background: #2C2C2C !important;
+        color: #FF5F00 !important;
+    }
+
+    .v-list-item--active::after {
+        width: 100%;
+        opacity: 0;
     }
 
     .v-list-item--active .v-icon {
-        color: #ff7d00 !important;
+        color: #FF5F00 !important;
     }
 
     /* Orange left accent bar for active item */
@@ -79,20 +119,21 @@
         content: '';
         position: absolute;
         left: 0;
-        top: 6px;
-        bottom: 6px;
-        width: 6px;
-        background: #ff7d00;
-        border-radius: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 60%;
+        width: 4px;
+        background: #FF5F00;
+        border-radius: 0 4px 4px 0;
+        z-index: 3;
     }
 
-    /* Hover state: lighten bg, keep text gray unless active */
+    /* Hover state */
     .v-list-item:not(.v-list-item--active):hover {
-        background: #262626 !important;
-        color: #e0e0e0 !important;
+        color: #FF5F00 !important;
     }
     .v-list-item:not(.v-list-item--active):hover .v-icon {
-        color: #e0e0e0 !important;
+        color: #FF5F00 !important;
     }
 
     .userbottom {
@@ -106,7 +147,7 @@
         padding: 3px 12px 12px 0px !important;
         font-weight: 500;
         margin-top: 24px;
-        color: rgb(var(--v-theme-grey200));
+        color: #B3B3B3;
 
         &:first-child {
             margin-top: 0 !important;
@@ -116,22 +157,17 @@
     /*General Menu css*/
     .v-list-group__items .v-list-item,
     .v-list-item {
-        border-radius: $border-radius-root + 3px;
-        padding-inline-start: calc(12px + var(--indent-padding) / 10) !important;
-        margin: 0 0 2px;
+        border-radius: 0 10px 10px 0;
+        padding: 10px 16px !important;
+        margin-right: 20px;
 
         .v-list-item__prepend {
-            margin-inline-end: 13px;
-            // position: relative;
-            z-index: 2;
+            margin-inline-end: 12px;
         }
 
         .v-list-item__append {
-            position: relative;
-            z-index: 2;
-
             .v-icon {
-                margin-inline-start: 13px;
+                margin-inline-start: 12px;
             }
         }
     }

@@ -15,9 +15,9 @@ useHead({
             <!-- Sidebar & Topbar -->
             <LayoutMain />
             <!-- Main content area -->
-            <v-main>
-                <v-container fluid class="page-wrapper px-sm-5 px-4 pt-6 bg-white rounded-xl">
-                    <div class="maxWidth">
+            <v-main class="bg-white min-h-screen rounded-tl-3xl">
+                <v-container fluid class="page-wrapper px-sm-5 px-4 pt-6">
+                    <div>
                         <NuxtPage />
                     </div>
                 </v-container>
