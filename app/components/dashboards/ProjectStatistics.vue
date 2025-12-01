@@ -91,7 +91,7 @@
 </template>
 
 <script setup>
-import { computed, defineProps, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { VSkeletonLoader } from 'vuetify/components';
 
 const props = defineProps({

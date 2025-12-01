@@ -3,10 +3,12 @@ import UiProjectCard from '@/components/shared/UiProjectCard.vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import AvatarGroup from '@/components/ui-components/avatar/AvatarGroup.vue';
 import ProjectStatistics from '@/components/dashboards/ProjectStatistics.vue';
+import { toast } from 'vue-sonner';
 
 const config = useRuntimeConfig();
 const apiMedia = config.public.apiMedia;
 const dashboardStore = useDashboardStore();
+const projectStore = useProjectStore();
 const { $formatDate, $getDayname } = useNuxtApp();
 const userStore = useUserStore();
 const dialogLogout = ref(false);
@@ -67,6 +69,34 @@ onMounted(async () => {
         }
     }
 });
+
+// Project detail quick view dialog
+const detailDialog = ref(false);
+const detailLoading = ref(false);
+const detailProject = ref(null);
+const openProject = async (projectId) => {
+    detailDialog.value = true;
+    detailLoading.value = true;
+    try {
+        const data = await projectStore.searchById(projectId);
+        const progress = {
+            task_total: Array.isArray(data?.project_status) ? data.project_status.length : 0,
+            task_complete: Array.isArray(data?.project_status)
+                ? data.project_status.filter(s => (s.status || '').toLowerCase() === 'complete').length
+                : 0,
+        };
+        detailProject.value = { ...data, progress };
+    } catch (e) {
+        toast.error('Failed to load project detail');
+        detailDialog.value = false;
+    } finally {
+        detailLoading.value = false;
+    }
+};
+const closeProject = () => {
+    detailDialog.value = false;
+    detailProject.value = null;
+};
 
 const filterAndFormatFinanceData = (projects = []) => {
     return projects.map(project => {
@@ -279,7 +309,7 @@ await fetchData();
 
         <v-row class="gy-4" style="margin:0 !important">
             <!-- Left Column -->
-            <v-col cols="7" class="flex flex-col gap-4">
+            <v-col cols="12" md="7" class="flex flex-col gap-4">
                 <!-- Important Project Card -->
                 <v-card v-if="importantProject" class="px-6 py-4 rounded-xl" elevation="2">
                     <div class="flex items-center justify-between w-full">
@@ -307,7 +337,7 @@ await fetchData();
                     </div>
                 </v-card>
                 
-                <div class="grid grid-cols-2 gap-6 items-stretch">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
                     <!-- analytics -->
                     <div class="flex flex-col h-full">
                         <v-card class="col-span-5 px-2 py-4 rounded-2xl h-full flex flex-col" elevation="2">
@@ -403,16 +433,17 @@ await fetchData();
             </v-col>
 
             <!-- Right Column: Project List -->
-            <v-col cols="5" class="flex flex-col gap-4">
+            <v-col cols="12" md="5" class="flex flex-col gap-4">
                 <v-card class="p-5" elevation="2">
                     <h4 class="font-semibold m-4">Project list</h4>
                     <v-divider></v-divider>
-                    <div class="flex flex-col gap-6" ref="scrollProjects">
+                    <div class="flex flex-col gap-4 md:gap-6" ref="scrollProjects">
                         <div
                              v-for="project in dashboardData.projects"
                             :key="project.id"
                             v-auto-animate
-                            class=" p-4"
+                            class=" p-3 md:p-4 cursor-pointer"
+                            @click="openProject(project.id)"
                         >
                             <UiProjectCard
                                 :projectData="project"
@@ -505,7 +536,7 @@ await fetchData();
                                 </div>
                             </UiProjectCard>
                         </div>
-                        <div v-if="!projectList.length" class="text-center text-sm text-gray-500">No project found</div>
+                        <div v-if="!projectList.length" class="text-center p-4 text-sm text-gray-500">No project found</div>
                     </div>
                 </v-card>
             </v-col>
@@ -575,9 +606,138 @@ await fetchData();
             </v-card-actions>
         </v-card>
     </v-dialog>
+
+    <!-- Project Quick View Dialog -->
+    <v-dialog
+        v-model="detailDialog"
+        max-width="900"
+        location="right"
+        scrim="false"
+        transition="dialog-right-transition"
+        scrollable
+        class="dialog-right-fixed"
+    >
+        <v-card class="rounded-l-xl overflow-hidden h-screen">
+            <v-progress-linear v-if="detailLoading" indeterminate color="primary" height="3" />
+            <v-card-text class="p-6 overflow-y-auto h-full" v-if="detailProject">
+                <!-- Header similar to detail page -->
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-center gap-4 min-w-0">
+                        <div class="w-16 h-16 rounded-lg shadow flex justify-center items-center text-white p-0 overflow-hidden">
+                            <img
+                                v-if="detailProject.end_user_str"
+                                :src="`${config.public.apiMedia}/${detailProject.end_user_str.logo}`"
+                                :alt="detailProject.name"
+                                class="w-full h-full object-contain"
+                            />
+                            <v-skeleton-loader v-else type="image" class="w-full" />
+                        </div>
+                        <div class="min-w-0">
+                            <h2 class="text-xl font-bold leading-tight truncate uppercase">
+                                {{ detailProject.name }}
+                            </h2>
+                            <div class="text-sm text-gray-500 truncate" v-if="detailProject.end_user_str">
+                                {{ detailProject.end_user_str.name }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-600" v-if="detailProject.end_date">Due date {{ detailProject.end_date }}</span>
+                        <v-chip :color="getStatusColor(detailProject.status)" variant="outlined" size="small">
+                            {{ detailProject.status }}
+                        </v-chip>
+                        <v-btn icon="mdi-close" variant="text" @click="closeProject"></v-btn>
+                    </div>
+                </div>
+
+                <v-divider class="my-4" />
+
+                <!-- PM + Team Row -->
+                <div class="flex items-center justify-between mb-2 flex-wrap gap-4">
+                    <div class="flex gap-2 items-center">
+                        <span class="text-sm">PM:</span>
+                        <v-avatar v-if="detailProject.pm_str" :image="config.public.apiMedia + detailProject.pm_str.photo" size="32" class="border-black border-2"></v-avatar>
+                        <span v-else class="text-sm text-gray-400">-</span>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="text-sm">Team:</span>
+                        <AvatarGroup :users="detailProject.engineer" :pm="detailProject.pm_str" />
+                    </div>
+                    <v-chip :color="getStatusColor(detailProject.status)" size="small" class="ml-auto">{{ detailProject.status }}</v-chip>
+                </div>
+
+                <v-divider class="my-2" />
+
+                <!-- Finance timeline -->
+                <div class="py-2">
+                    <div class="flex p-2">
+                        <div class="w-28 pr-2 pt-2 text-sm font-medium">Finance:</div>
+                        <v-timeline density="compact" side="end" class="flex-1 pill-timeline">
+                            <v-timeline-item
+                                v-for="finance in (detailProject.finance || detailProject.finances || [])"
+                                :key="finance.id || finance.name"
+                                size="small"
+                                :dot-color="getDueDateColor(finance.date_of_payment).color"
+                            >
+                                <div class="flex items-center justify-between gap-4">
+                                    <div class="flex flex-col">
+                                        <strong>{{ finance.name }}</strong>
+                                        <span class="text-xs font-thin">{{ finance.status }}</span>
+                                    </div>
+                                    <v-chip :color="getDueDateColor(finance.date_of_payment).color" variant="flat" size="small">
+                                        <span class="text-xs">Due date {{ $formatDate(finance.date_of_payment) }}</span>
+                                    </v-chip>
+                                </div>
+                            </v-timeline-item>
+                        </v-timeline>
+                    </div>
+                </div>
+
+                <!-- Project Status timeline -->
+                <div class="py-2 border-t">
+                    <div class="flex p-2">
+                        <div class="w-28 pr-2 pt-2 text-sm font-medium leading-4">Project<br/>Status:</div>
+                        <v-timeline density="compact" side="end" class="flex-1 pill-timeline">
+                            <v-timeline-item
+                                v-for="status in (detailProject.project_status || [])"
+                                :key="status.id || status.description + status.date_submit"
+                                size="small"
+                                :dot-color="getStatusColor(status.status)"
+                            >
+                                <div class="flex items-center justify-between gap-4">
+                                    <div class="flex flex-col">
+                                        <strong>{{ status.description }}</strong>
+                                        <span class="text-xs font-thin">{{ $formatDate(status.date_submit) }}</span>
+                                    </div>
+                                    <v-chip :color="getStatusColor(status.status)" :variant="['in progress','complete'].includes((status.status||'').toLowerCase()) ? 'outlined' : 'flat'" size="small">
+                                        <span class="text-xs">{{ status.status }}</span>
+                                    </v-chip>
+                                </div>
+                            </v-timeline-item>
+                        </v-timeline>
+                    </div>
+                </div>
+
+                <v-divider class="my-4" />
+
+                <!-- Informations and Engineers sections (same as detail page) -->
+                <div class="grid grid-cols-1 gap-4">
+                    <dashboards-project-informations :project="detailProject" />
+                </div>
+            </v-card-text>
+        </v-card>
+    </v-dialog>
 </template>
 
 <style>
+.dialog-right-fixed .v-overlay__content {
+    position: fixed !important;
+    right: 0 !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    transform: none !important;
+}
+
 .v-timeline--vertical.v-timeline
     .v-timeline-item:first-child
     .v-timeline-divider,

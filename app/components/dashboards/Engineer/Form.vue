@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, toRefs, defineProps } from 'vue';
+import { ref, onMounted, toRefs } from 'vue';
 import { toast } from 'vue-sonner';
 
 const headers = [
@@ -66,8 +66,6 @@ const statusOptions = [
     'Not Started Yet',
     'Maintenance',
 ];
-
-const toast = useToast();
 
 async function initialize() {
     if (formData.value.id) {

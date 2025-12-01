@@ -8,7 +8,7 @@
         <v-sheet rounded="xl" width="200" elevation="10" class="mt-2">
             <div class="pt-4 pb-4 px-5 text-center">
                 <v-btn
-                    color="primary"
+                    color="warning"
                     variant="outlined"
                     class="rounded-pill"
                     block
@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-import { defineProps, ref } from 'vue';
+import { ref } from 'vue';
 import DialogLogout from '~/components/auth/DialogLogout.vue';
 
 const props = defineProps({

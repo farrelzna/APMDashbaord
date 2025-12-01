@@ -5,6 +5,14 @@ const projectStore = useProjectStore();
 const infoShow = ref(false);
 const loading = ref(true);
 const search = ref(null);
+const tableOptions = reactive({ page: 1, itemsPerPage: 10 });
+const totalProjects = computed(() => projects.page.count_result || 0);
+const pageStart = computed(() => {
+    if (!totalProjects.value) return 0;
+    return (tableOptions.page - 1) * tableOptions.itemsPerPage + 1;
+});
+const pageEnd = computed(() => Math.min(tableOptions.page * tableOptions.itemsPerPage, totalProjects.value));
+import { colorByStatus } from '@/utils/colorByStatus';
 
 const headers = [
     { title: '#', key: 'number', sortable: false },
@@ -14,7 +22,6 @@ const headers = [
     { title: 'End-User', key: 'end_user_str.name', sortable: false },
     { title: 'PM', key: 'pm_str.full_name', sortable: false },
     { title: 'Progress', key: 'progress', sortable: false },
-    { title: 'Status', key: 'status', sortable: false },
     { title: 'Actions', key: 'actions', sortable: false },
 ];
 
@@ -176,14 +183,18 @@ provide('refreshData', initialize);
 
 <template>
     <v-data-table-server
-        v-model:items-per-page="projects.page.per_page"
+        v-model:page="tableOptions.page"
+        v-model:items-per-page="tableOptions.itemsPerPage"
         :headers="headers"
         :items="projects.results"
         :loading="loading"
         :items-length="projects.page.count_result"
         :search="search"
-        :items-per-page-options="[]"
+        show-select
+        :items-per-page-options="[{ value: 10, title: '10' }, { value: 25, title: '25' }, { value: 50, title: '50' }]"
+        :hide-default-footer="true"
         @update:options="loadItems"
+        class="border p-5 rounded-xl"
     >
         <template v-slot:item.progress="{ item }">
             <v-progress-linear
@@ -193,16 +204,7 @@ provide('refreshData', initialize);
             ></v-progress-linear>
         </template>
 
-        <template v-slot:item.status="{ item }">
-            <v-chip
-                :color="colorByStatus(item.status)"
-                class="text-uppercase"
-                size="small"
-                label
-            >
-                <strong>{{ item.status }}</strong>
-            </v-chip>
-        </template>
+        
         <template v-slot:top>
             <v-toolbar flat color="containerBg">
                 <v-toolbar-title>Projects Table</v-toolbar-title>
@@ -215,6 +217,13 @@ provide('refreshData', initialize);
                     hide-details
                     single-line
                 ></v-text-field>
+                <div class="flex items-center gap-1 ml-3 text-xs font-medium">
+                    <span class="text-gray-800">{{ pageStart }}-{{ pageEnd }} of {{ totalProjects }}</span>
+                    <v-btn class="h-7 w-7" icon="mdi-chevron-double-left" variant="text" size="x-small" @click="tableOptions.page = 1" :disabled="tableOptions.page === 1" />
+                    <v-btn class="h-7 w-7" icon="mdi-chevron-left" variant="text" size="x-small" @click="tableOptions.page > 1 && tableOptions.page--" :disabled="tableOptions.page === 1" />
+                    <v-btn class="h-7 w-7" icon="mdi-chevron-right" variant="text" size="x-small" @click="tableOptions.page * tableOptions.itemsPerPage < totalProjects && tableOptions.page++" :disabled="tableOptions.page * tableOptions.itemsPerPage >= totalProjects" />
+                    <v-btn class="h-7 w-7" icon="mdi-chevron-double-right" variant="text" size="x-small" @click="tableOptions.page = Math.ceil(totalProjects / tableOptions.itemsPerPage)" :disabled="tableOptions.page * tableOptions.itemsPerPage >= totalProjects" />
+                </div>
 
                 <v-btn
                     class="mx-5"
@@ -237,40 +246,31 @@ provide('refreshData', initialize);
         <template v-slot:item.name="{ item }">
             <p class="w-56">{{ item.name }}</p>
         </template>
+        <template v-slot:item.number="{ index }">
+            {{ (tableOptions.page - 1) * tableOptions.itemsPerPage + index + 1 }}
+        </template>
         <template v-slot:item.actions="{ item }">
-            <v-menu location="start">
-                <template v-slot:activator="{ props }">
-                    <v-icon
-                        v-bind="props"
-                        size="large"
-                        icon="mdi-dots-vertical"
-                    ></v-icon>
-                </template>
-                <v-list>
-                    <v-list-item key="" value="">
-                        <nuxt-link :to="`/dashboard/project/${item.id}`">
-                            <div class="flex gap-2 items-center">
-                                <v-icon size="small">mdi-eye</v-icon>
-                                <v-list-item-title>Details</v-list-item-title>
-                            </div>
-                        </nuxt-link>
-                    </v-list-item>
-                    <v-list-item key="" value="" @click="editItem(item)">
-                        <nuxt-link :to="`/dashboard/project/update/${item.id}`">
-                            <div class="flex gap-2 items-center">
-                                <v-icon size="small">mdi-pencil</v-icon>
-                                <v-list-item-title>Edit</v-list-item-title>
-                            </div>
-                        </nuxt-link>
-                    </v-list-item>
-                    <v-list-item key="" value="" @click="deleteItem(item)">
-                        <div class="flex gap-2 items-center">
-                            <v-icon size="small">mdi-delete</v-icon>
-                            <v-list-item-title>Delete</v-list-item-title>
-                        </div>
-                    </v-list-item>
-                </v-list>
-            </v-menu>
+            <div class="flex flex-col items-start gap-2 w-full">
+                <div class="row-actions flex items-center gap-2">
+                    <nuxt-link :to="`/dashboard/project/${item.id}`" class="inline-flex items-center">
+                        <v-icon size="small">mdi-eye</v-icon>
+                    </nuxt-link>
+                    <nuxt-link :to="`/dashboard/project/update/${item.id}`" class="inline-flex items-center">
+                        <v-icon size="small">mdi-pencil</v-icon>
+                    </nuxt-link>
+                    <button class="inline-flex items-center" @click="deleteItem(item)">
+                        <v-icon size="small" color="error">mdi-delete</v-icon>
+                    </button>
+                </div>
+                <v-btn
+                    class="visit-btn"
+                    size="x-small"
+                    :color="colorByStatus(item.status)"
+                    variant="tonal"
+                    rounded="lg"
+                    @click="navigateTo(`/dashboard/project/${item.id}`)"
+                >{{ item.status }}</v-btn>
+            </div>
         </template>
         <template v-slot:no-data>
             <div class="flex flex-col gap-5 items-center p-5">
@@ -280,3 +280,27 @@ provide('refreshData', initialize);
         </template>
     </v-data-table-server>
 </template>
+
+<style scoped>
+.row-actions {
+    opacity: 0;
+    transform: translateY(-2px);
+    transition: opacity .15s ease, transform .15s ease;
+}
+:deep(tbody tr:hover .row-actions),
+:deep(tbody tr:focus-within .row-actions) {
+    opacity: 1;
+    transform: translateY(0);
+}
+.visit-btn {
+    font-size: 11px;
+    line-height: 16px;
+    padding: 0 10px;
+    text-transform: none;
+    font-weight: 500;
+    transition: background-color .15s ease;
+}
+.visit-btn:hover {
+    filter: brightness(0.98);
+}
+</style>
