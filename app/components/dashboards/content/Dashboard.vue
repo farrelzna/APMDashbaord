@@ -1,27 +1,22 @@
 <script setup>
 import UiProjectCard from '@/components/shared/UiProjectCard.vue';
-import UiParentCard from '@/components/shared/UiParentCard.vue';
 import AvatarGroup from '@/components/ui-components/avatar/AvatarGroup.vue';
-const ProjectStatistics = defineAsyncComponent(() => import('@/components/dashboards/ProjectStatistics.vue'));
+const ProjectStatistics = defineAsyncComponent(() => import('@/components/dashboards/ProjectStatistics.vue'));  
+import { toast } from 'vue-sonner';
+import { colorByStatus } from '@/utils/colorByStatus';
 
 const config = useRuntimeConfig();
 const apiMedia = config.public.apiMedia;
 const dashboardStore = useDashboardStore();
-const { $formatDate, $getDayname } = useNuxtApp();
-const userStore = useUserStore();
-const dialogLogout = ref(false);
-const isDashboard = ref(userStore.userGroupPermissions.includes('Dashboard'));
+const projectStore = useProjectStore();
 const props = defineProps({
-    isScroll: Boolean, // Change to Boolean if it's a boolean prop
+    isScroll: Boolean,
 });
 
 // Data
 const dashboardData = ref(null);
-const standupMeet = ref(null);
-const standupDate = ref(null);
-const projectsData = ref([]);
-const items = ref([]);
 const datas = ref([]);
+
 // Grouped metrics summary
 const summaryMetrics = computed(() =>
     datas.value.filter(d => ['Total Client', 'Total Project', 'Total User'].includes(d.title))
@@ -50,16 +45,6 @@ const projectList = computed(() => {
     );
 });
 
-
-const handleLogout = () => {
-    dialogLogout.value = true;
-};
-
-const confirmLogout = () => {
-    userStore.logout();
-    dialogLogout.value = false;
-};
-
 const hasDashboardData = computed(() => !!dashboardData.value);
 
 // Non-blocking async data fetching
@@ -83,20 +68,32 @@ onMounted(() => {
     }, { immediate: true });
 });
 
-const filterAndFormatFinanceData = (projects = []) => {
-    return projects.map(project => {
-        if (project?.finances && Array.isArray(project.finances)) {
-            project.finances = project.finances
-                .filter(financeItem => financeItem?.date_of_payment)
-                .sort(
-                    (a, b) =>
-                        new Date(a.date_of_payment) -
-                        new Date(b.date_of_payment)
-                )
-                .slice(0, 3);
-        }
-        return project;
-    });
+// Project detail quick view dialog
+const detailDialog = ref(false);
+const detailLoading = ref(false);
+const detailProject = ref(null);
+const openProject = async (projectId) => {
+    detailDialog.value = true;
+    detailLoading.value = true;
+    try {
+        const data = await projectStore.searchById(projectId);
+        const progress = {
+            task_total: Array.isArray(data?.project_status) ? data.project_status.length : 0,
+            task_complete: Array.isArray(data?.project_status)
+                ? data.project_status.filter(s => (s.status || '').toLowerCase() === 'complete').length
+                : 0,
+        };
+        detailProject.value = { ...data, progress };
+    } catch (e) {
+        toast.error('Failed to load project detail');
+        detailDialog.value = false;
+    } finally {
+        detailLoading.value = false;
+    }
+};
+const closeProject = () => {
+    detailDialog.value = false;
+    detailProject.value = null;
 };
 
 const fetchData = async () => {
@@ -125,135 +122,43 @@ const fetchData = async () => {
                 value: dashboardData.value.total_engineer_eksternal,
             },
         ];
-
-        if (dashboardData.value.standup.length !== 0) {
-            standupMeet.value = dashboardData.value.standup;
-            const today = new Date().toISOString().split('T')[0];
-            standupDate.value = standupMeet.value.filter(
-                entry => entry.date === today
-            );
-
-            standupDate.value = standupMeet.value[0].date;
-            items.value = standupMeet.value.flatMap(entry => {
-                const details = entry.details;
-
-                return details.flatMap(detail => {
-                    const photoUrl =
-                        detail.participant.photo ||
-                        '/images/profile/user-1.jpg';
-                    const fullName = detail.participant.full_name;
-
-                    const workDetailsList = [];
-                    if (detail.yesterday_work) {
-                        workDetailsList.push(
-                            `<li><b class="text-blue-600">Yesterday's Work:</b> ${detail.yesterday_work}</li>`
-                        );
-                    }
-                    if (detail.today_work) {
-                        workDetailsList.push(
-                            `<li><b class="text-blue-600">Today's Work:</b> ${detail.today_work}</li>`
-                        );
-                    }
-                    if (detail.impediments) {
-                        workDetailsList.push(
-                            `<li><b class="text-blue-600">Impediments:</b> ${detail.impediments}</li>`
-                        );
-                    }
-
-                    const workDetails = `<ul>${workDetailsList.join('')}</ul>`;
-
-                    return [
-                        {
-                            prependAvatar: photoUrl,
-                            title: fullName,
-                            subtitle: workDetails,
-                        },
-                    ];
-                });
-            });
-        }
-
-        projectsData.value = filterAndFormatFinanceData(
-            dashboardData.value.projects
-        );
     }
 };
 
+// Realtime updates dengan cleanup
+let realtimeInterval = null;
+
 const setupRealtimeUpdates = () => {
     const intervalDelay = config.public.realtimeDelay;
-    setInterval(async () => {
+    realtimeInterval = setInterval(async () => {
         await fetchData();
     }, intervalDelay);
 };
 
-const getDueDateColor = dueDate => {
-    const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = due - today;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays <= 0) {
-        return { color: 'error', variant: 'flat' };
-    } else if (diffDays <= 15) {
-        return { color: 'error', variant: 'outlined' };
-    } else if (diffDays <= 50) {
-        return { color: 'warning', variant: 'flat' };
-    } else {
-        return { color: 'success', variant: 'outlined' };
+onBeforeUnmount(() => {
+    if (realtimeInterval) {
+        clearInterval(realtimeInterval);
+        realtimeInterval = null;
     }
-};
-
-const getStatusColor = status => {
-    switch (status.toLowerCase()) {
-        case 'maintenance':
-            return 'primary';
-        case 'complete':
-            return 'success';
-        case 'in progress':
-            return 'warning';
-        case 'almost due':
-            return 'error';
-        default:
-            return '';
-    }
-};
+});
 
 const scrollProjects = ref();
 const scrollWorkload = ref();
-const scrollStandup = ref();
 
 const isDown = ref({
     project: false,
     workload: false,
-    standup: false,
 });
 
 const projectSortOrder = ref('newest'); // 'newest' or 'oldest'
 
-// Memoized sorting untuk performa lebih baik
-let cachedProjects = [];
-let cachedSortOrder = '';
-let cachedResult = [];
-
 const sortedProjects = computed(() => {
     if (!dashboardData.value?.projects?.length) return [];
     
-    // Return cached result jika data tidak berubah
-    if (cachedProjects === dashboardData.value.projects && cachedSortOrder === projectSortOrder.value) {
-        return cachedResult;
-    }
-    
     const projects = [...dashboardData.value.projects];
-    const result = projectSortOrder.value === 'newest'
+    return projectSortOrder.value === 'newest'
         ? projects.sort((a, b) => new Date(b.end_date) - new Date(a.end_date))
         : projects.sort((a, b) => new Date(a.end_date) - new Date(b.end_date));
-    
-    // Update cache
-    cachedProjects = dashboardData.value.projects;
-    cachedSortOrder = projectSortOrder.value;
-    cachedResult = result;
-    
-    return result;
 });
 
 const autoScroll = (container, index) => {
@@ -276,24 +181,31 @@ const autoScroll = (container, index) => {
     }
 };
 
+// AutoScroll intervals dengan cleanup
+let autoScrollIntervals = [];
+
 const setupAutoScroll = () => {
-    setInterval(() => autoScroll(scrollProjects, 'project'), 200);
-    setInterval(() => autoScroll(scrollWorkload, 'workload'), 200);
-    setInterval(() => autoScroll(scrollStandup, 'standup'), 200);
+    autoScrollIntervals.push(
+        setInterval(() => autoScroll(scrollProjects, 'project'), 200),
+        setInterval(() => autoScroll(scrollWorkload, 'workload'), 200)
+    );
 };
+
+onBeforeUnmount(() => {
+    // Clear realtime interval
+    if (realtimeInterval) {
+        clearInterval(realtimeInterval);
+        realtimeInterval = null;
+    }
+    
+    // Clear autoScroll intervals
+    autoScrollIntervals.forEach(interval => clearInterval(interval));
+    autoScrollIntervals = [];
+});
 
 </script>
 
 <template>
-    <div
-        class="absolute top-0 right-0 p-5 z-50 opacity-0 hover:opacity-100"
-        v-if="isDashboard"
-    >
-        <v-btn variant="elevated" color="error" @click="handleLogout">
-            Logout
-        </v-btn>
-    </div>
-
     <div v-if="hasDashboardData" class="w-full flex flex-col gap-4">
         <!-- Banner -->
         <div class="bg-[#Ff5f00] rounded-xl p-8 shadow-sm position-relative overflow-hidden">
@@ -329,9 +241,9 @@ const setupAutoScroll = () => {
             </div>
         </div>
 
-        <v-row class="gy-4" style="margin:0 !important">
+        <v-row class="gy-4" style="margin:0 !important">    
             <!-- Left Column -->
-            <v-col cols="7" class="flex flex-col gap-4 px-0">
+            <v-col cols="12" md="7" class="flex flex-col gap-4">
                 <!-- Important Project Card -->
                 <v-card v-if="importantProject" class="pa-4" elevation="0" rounded="lg" style="border: 1px solid #F4F4F4;">
                     <div class="flex items-center justify-between w-full">
@@ -350,7 +262,7 @@ const setupAutoScroll = () => {
                             <v-chip
                                 size="small"
                                 class="text-body-2"
-                                :color="getStatusColor(importantProject.status)"
+                                :color="colorByStatus(importantProject.status)"
                                 variant="outlined"
                             >
                                 {{ importantProject.status }}
@@ -359,7 +271,7 @@ const setupAutoScroll = () => {
                     </div>
                 </v-card>
                 
-                <div class="grid grid-cols-2 gap-4 items-stretch">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
                     <!-- analytics -->
                     <div class="flex flex-col h-full">
                         <v-card class="col-span-5 h-full flex flex-col" elevation="0" rounded="lg" style="border: 1px solid #F4F4F4;">
@@ -491,10 +403,10 @@ const setupAutoScroll = () => {
             </v-col>
 
             <!-- Right Column: Project List -->
-            <v-col cols="5" class="d-flex flex-column pr-0">
+            <v-col cols="12" md="5" class="d-flex flex-column md:pr-0">
                 <v-card class="pa-0" elevation="0" rounded="lg" style="border: 1px solid #F4F4F4;">
-                    <div class="pa-4 pb-3 d-flex align-center justify-space-between">
-                        <h5 class="text-h6 font-weight-semibold">Project list</h5>
+                    <div class="pa-4 pb-3 d-flex align-center justify-space-between flex-wrap ga-3">
+                        <h5 class="text-subtitle-1 text-md-h6 font-weight-semibold">Project list</h5>
                         <v-btn-toggle
                             v-model="projectSortOrder"
                             mandatory
@@ -503,32 +415,37 @@ const setupAutoScroll = () => {
                             color="primary"
                             divided
                         >
-                            <v-btn value="newest" size="small" class="text-none">
-                                <v-icon size="small" class="mr-1">mdi-sort-calendar-descending</v-icon>
-                                Newest
+                            <v-btn value="newest" size="x-small" class="text-none text-caption">
+                                <v-icon size="x-small" class="mr-1">mdi-sort-calendar-descending</v-icon>
+                                <span class="d-none d-sm-inline">Newest</span>
                             </v-btn>
-                            <v-btn value="oldest" size="small" class="text-none">
-                                <v-icon size="small" class="mr-1">mdi-sort-calendar-ascending</v-icon>
-                                Oldest
+                            <v-btn value="oldest" size="x-small" class="text-none text-caption">
+                                <v-icon size="x-small" class="mr-1">mdi-sort-calendar-ascending</v-icon>
+                                <span class="d-none d-sm-inline">Oldest</span>
                             </v-btn>
                         </v-btn-toggle>
                     </div>
                     <v-divider></v-divider>
                     
-                    <div class="project-list-scroll" ref="scrollProjects" style="overflow-y: auto; max-height: calc(100vh - 64px);">
+                    <div class="project-list-scroll" ref="scrollProjects" :style="{ 
+                        overflowY: 'auto', 
+                        maxHeight: 'calc(100vh - 174px)' 
+                    }">
                         <div
                             v-for="project in sortedProjects"
                             :key="project.id"
                             v-auto-animate
                             style="border-bottom: 1px solid #f5f5f5;"
+                            class=" p-3 md:p-4 cursor-pointer"
+                            @click="openProject(project.id)"
                         >
                         <UiProjectCard
                             :projectData="project"
-                            :color="getStatusColor(project.status)"
+                            :color="colorByStatus(project.status)"
                         >
                             <!-- PM, Team, Status Badge Row -->
-                            <div class="d-flex align-center justify-space-between mb-3">
-                                <div class="d-flex align-center ga-2">
+                            <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between mb-3 ga-2">
+                                <div class="d-flex align-center ga-4 ga-sm-8 flex-wrap">
                                     <span class="text-caption text-grey-darken-1">PM:</span>
                                     <v-avatar
                                         v-if="project.pm_str"
@@ -538,17 +455,17 @@ const setupAutoScroll = () => {
                                          loading="lazy"
                                     ></v-avatar>
                                     <span v-else class="text-caption">-</span>
-                                </div>
-                                <div class="d-flex align-center ga-4">
-                                    <div class="d-flex align-center ga-2">
+                                     <div class="d-flex align-center ga-2">
                                         <span class="text-caption text-grey-darken-1">Team:</span>
                                         <AvatarGroup
                                             :users="project.engineer"
                                             :pm="project.pm_str"
                                         />
                                     </div>
+                                </div>
+                                <div class="d-flex align-center ga-4">                                   
                                     <v-chip
-                                        :color="getStatusColor(project.status)"
+                                        :color="colorByStatus(project.status)"
                                         :variant="['in progress','complete'].includes(project.status.toLowerCase()) ? 'tonal' : 'flat'"
                                         size="small"
                                         label
@@ -569,13 +486,13 @@ const setupAutoScroll = () => {
                                         class="d-flex align-center ga-3"
                                     >
                                         <div style="width: 4px; height: 48px; background-color: #FF5F00; border-radius: 2px; flex-shrink: 0;"></div>
-                                        <div class="d-flex align-center justify-space-between flex-grow-1">
+                                        <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between flex-grow-1 ga-1">
                                             <div class="d-flex flex-column ga-1">
                                                 <div class="text-body-2 font-weight-bold">{{ finance.name }}</div>
                                                 <div class="text-caption text-grey-darken-1">{{ finance.status }}</div>
                                             </div>
                                             <div
-                                                class="text-caption text-grey-darken-1" style="white-space: nowrap; margin-top: 4px;"
+                                                class="text-caption text-grey-darken-1"
                                             >
                                                 Due date {{ finance.date_of_payment }}
                                             </div>
@@ -600,7 +517,7 @@ const setupAutoScroll = () => {
                                         <div class="d-flex align-center justify-space-between flex-grow-1">
                                             <div class="text-body-2 font-weight-medium">{{ status.description }}</div>
                                             <v-chip
-                                                :color="getStatusColor(status.status)"
+                                                :color="colorByStatus(status.status)"
                                                 :variant="['in progress','complete'].includes(status.status.toLowerCase()) ? 'tonal' : 'flat'"
                                                 size="x-small"
                                                 label
@@ -608,7 +525,7 @@ const setupAutoScroll = () => {
                                             >
                                                 {{ status.status }}
                                             </v-chip>
-                                        </div>
+                                        </div> 
                                     </div>
                                 </div>
                             </div>
@@ -622,68 +539,15 @@ const setupAutoScroll = () => {
     </div>
 
     <!-- Loading Skeleton -->
-    <div class="w-full flex flex-col gap-2" v-else>
-        <v-row>
-            <v-col>
-                <v-skeleton-loader type="image"></v-skeleton-loader>
-            </v-col>
-            <v-col>
-                <v-skeleton-loader type="image"></v-skeleton-loader>
-            </v-col>
-            <v-col>
-                <v-skeleton-loader type="image"></v-skeleton-loader>
-            </v-col>
-            <v-col>
-                <v-skeleton-loader type="image"></v-skeleton-loader>
-            </v-col>
-        </v-row>
-        <div class="grid gap-2">
-            <div class="col-start-1 col-end-3 row-start-1 row-end-2">
-                <v-skeleton-loader type="image"></v-skeleton-loader>
-            </div>
-            <div class="col-start-3 col-end-5 row-start-1 row-end-3">
-                <v-skeleton-loader
-                    type="ossein"
-                    class="h-full"
-                ></v-skeleton-loader>
-            </div>
-            <div class="col-start-1 col-end-3 row-start-2 row-end-3">
-                <v-skeleton-loader
-                    type="image"
-                    class="h-full"
-                ></v-skeleton-loader>
-            </div>
-            <div class="col-start-1 col-end-5 row-start-3">
-                <v-skeleton-loader
-                    type="ossein"
-                    class="h-full"
-                ></v-skeleton-loader>
-            </div>
-        </div>
-    </div>
+    <dashboards-dashboard-skeleton v-else />
 
-    <v-dialog v-model="dialogLogout" max-width="500">
-        <v-card class="p-5">
-            <v-card-title class="leading-3 text-center mt-5"
-                >Logout Confirmation</v-card-title
-            >
-            <v-card-text class="text-center">
-                Are you sure you want to logout?
-            </v-card-text>
-            <v-card-actions class="flex justify-center items-center mb-5">
-                <v-btn
-                    text
-                    @click="dialogLogout = false"
-                    color="error"
-                    variant="outlined"
-                    >Cancel</v-btn
-                >
-                <v-btn color="error" variant="flat" @click="confirmLogout"
-                    >Confirm</v-btn
-                >
-            </v-card-actions>
-        </v-card>
-    </v-dialog>
+    <!-- Project Detail Dialog Component -->
+    <dashboards-project-detail-dialog
+        v-model="detailDialog"
+        :loading="detailLoading"
+        :project="detailProject"
+        @close="closeProject"
+    />
 </template>
 
 <style>

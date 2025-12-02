@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { computed, defineProps, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 const config = useRuntimeConfig();
 const apiMedia = config.public.apiMedia;
 

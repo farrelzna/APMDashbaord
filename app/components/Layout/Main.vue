@@ -9,6 +9,11 @@ const sidebarMenu = shallowRef(sidebarItems);
 const sDrawer = ref(true);
 const userStore = useUserStore();
 const [listRef] = useAutoAnimate();
+const [logoRef] = useAutoAnimate();
+const [profileRef] = useAutoAnimate();
+const rail = ref(false);
+const isDragging = ref(false);
+const startX = ref(0);
 
 // Fetch user data on mount (was previously conditional on user ref existence, causing early access issues)
 onMounted(() => {
@@ -16,6 +21,42 @@ onMounted(() => {
         userStore.fetchUser();
     } catch (e) {}
 });
+
+const handleMouseDown = (e) => {
+    isDragging.value = true;
+    startX.value = e.clientX;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+};
+
+const handleMouseMove = (e) => {
+    if (!isDragging.value) return;
+    
+    const diff = e.clientX - startX.value;
+    
+    // Jika sidebar terbuka dan drag ke kiri lebih dari 50px, tutup
+    if (!rail.value && diff < -50) {
+        rail.value = true;
+        isDragging.value = false;
+        cleanupListeners();
+    }
+    // Jika sidebar tertutup dan drag ke kanan lebih dari 50px, buka
+    else if (rail.value && diff > 50) {
+        rail.value = false;
+        isDragging.value = false;
+        cleanupListeners();
+    }
+};
+
+const handleMouseUp = () => {
+    isDragging.value = false;
+    cleanupListeners();
+};
+
+const cleanupListeners = () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+};
 </script>
 
 <template>
@@ -25,10 +66,29 @@ onMounted(() => {
         app
         class="leftSidebar"
         elevation="0"
-        width="270"
+        :rail="rail"
+        :width="rail ? 80 : 270"
     >
-        <div class="p-8 w-full flex justify-center items-center">
-            <LayoutFullLogoDark />
+        <!-- Toggle Button with Drag Handle -->
+        <div
+            class="position-absolute d-flex align-center"
+            style="right: -10px; top:50%; transform: translateY(-50%); z-index: 10; cursor: grab;"            
+            @mousedown="handleMouseDown"            
+            :class="{ 'cursor-grabbing': isDragging }"
+            >
+            <v-btn
+                icon
+                size="small"
+                variant="flat"                
+                style="background: #1e1e1e; border: none; border-radius: 5px 0 0 5px;"
+                @click="rail = !rail"
+            >
+                <div style="width: 2px; height: 20px; background-color: #b3b3b3; border-radius: 1px;"></div>
+            </v-btn>
+        </div>
+
+        <div class="p-8 w-full flex justify-center items-center" ref="logoRef">
+            <LayoutFullLogoDark v-if="!rail" />
         </div>
         <div class="scrollnavbar overflow-y-hidden flex flex-col h-full relative">
             <v-list class="py-2" ref="listRef">
@@ -54,9 +114,9 @@ onMounted(() => {
             </v-list>
             
             <!-- User Profile Button with Dropdown Trigger -->
-            <div class="mt-auto pa-3">
-                <v-menu location="top" offset="8">
-                    <template v-slot:activator="{ props }">
+            <div class="mt-auto pa-3" v-if="!rail" ref="profileRef">
+                <LayoutFullVerticalHeaderProfileDD :photo="userStore.user?.photo || '/images/profile/user.png'">
+                    <template #activator="{ props }">
                         <v-btn
                             v-bind="props"
                             variant="flat"
@@ -65,7 +125,7 @@ onMounted(() => {
                             rounded="lg"
                         >
                             <div class="d-flex align-center ga-3 flex-1" style="min-width: 0;">
-                                <LayoutFullVerticalHeaderProfileDD :photo="userStore.user?.photo || '/images/profile/user.png'" />
+                                <v-avatar size="35" :image="userStore.user?.photo || '/images/profile/user.png'" />
                                 <div class="d-flex flex-column align-start flex-1" style="min-width: 0;">
                                     <span class="font-medium text-xs text-white text-truncate" style="line-height: 1.2; width: 100%;">{{ userStore.user?.full_name || 'Username' }}</span>
                                     <span class="text-xs text-[#B3B3B3] text-truncate" style="line-height: 1.2; width: 100%;">{{ userStore.user?.email || userStore.user?.role || 'user@example.com' }}</span>
@@ -74,26 +134,21 @@ onMounted(() => {
                             </div>
                         </v-btn>
                     </template>
-                    
-                    <div class="bg-red/30 rounded-lg" style="min-width: 220px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
-                        <button 
-                            @click="userStore.logout()" 
-                            class="w-100 d-flex align-center ga-3 pa-3 rounded-lg text-left"
-                            style="background: rgba(239, 68, 68, 0.01); border: 1px solid rgba(239, 68, 68, 0.2); cursor: pointer; transition: all 0.2s;"
-                            @mouseenter="$event.target.style.background = 'rgba(239, 68, 68, 0.1)'"
-                            @mouseleave="$event.target.style.background = 'rgba(239, 68, 68, 0.05)'"
-                        >
-                            <v-icon icon="mdi-logout-variant" color="error" size="20" />
-                            <div class="d-flex flex-column flex-1">
-                                <span class="text-body-2 font-weight-medium text-error">Logout Account</span>
-                                <span class="text-caption text-white" style="opacity: 0.7;">Sign out from dashboard</span>
-                            </div>
-                        </button>
-                    </div>
-                </v-menu>
+                </LayoutFullVerticalHeaderProfileDD>
+            </div>
+
+            <!-- Rail Mode Profile -->
+            <div class="mt-auto pa-3 d-flex justify-center" v-else>
+                <LayoutFullVerticalHeaderProfileDD :photo="userStore.user?.photo || '/images/profile/user.png'" />
             </div>
             
-            <div class="text-xs text-start px-6 pb-4 space-y-1 text-[#B3B3B3]">APM DASA - V2</div>
+            <div class="text-xs text-start px-3 py-4 space-y-1 text-[#B3B3B3]" v-if="!rail">APM DASA - V2</div>
         </div>
     </v-navigation-drawer>
 </template>
+
+<style scoped>
+.cursor-grabbing {
+    cursor: grabbing !important;
+}
+</style>

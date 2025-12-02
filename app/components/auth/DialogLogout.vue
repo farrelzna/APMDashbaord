@@ -1,23 +1,39 @@
 <template>
-    <v-dialog v-model="dialogVisible" max-width="500">
-        <v-card class="p-5">
-            <v-card-title class="leading-3 text-center mt-5">
-                Logout Confirmation
-            </v-card-title>
-            <v-card-text class="text-center">
-                Are you sure you want to logout?
+    <v-dialog 
+        v-model="dialogVisible" 
+        max-width="600" 
+        persistent
+        :scrim="true"
+    >
+        <v-card elevation="0" class="rounded-lg" style="border: 1px solid #e0e0e0;">
+            <v-card-text class="pa-6">
+                <div class="mb-4">
+                    <h3 class="text-h6 font-weight-bold mb-3">Are You sure ?</h3>
+                    <p class="text-body-2 text-grey-darken-1 mb-0">
+                        Do you really want to logout from your account? 
+                        <br />
+                        <strong>This action cannot be undone.</strong>
+                    </p>
+                </div>
             </v-card-text>
-            <v-card-actions class="flex justify-center items-center mb-5">
+            <v-card-actions class="pa-4 pt-0 d-flex ga-3 justify-end">
                 <v-btn
-                    text
-                    @click="closeDialog"
-                    color="error"
                     variant="outlined"
+                    color="grey-darken-1"
+                    @click="closeDialog"
+                    class="text-none px-6 rounded-lg"
+                    size="default"
                 >
                     Cancel
                 </v-btn>
-                <v-btn color="error" variant="flat" @click="confirmLogout">
-                    Confirm
+                <v-btn
+                    variant="flat"                    
+                    @click="confirmLogout"
+                    class="text-none px-6 rounded-lg"
+                    size="default"
+                    style="background: black; color: white;"
+                >
+                    Logout
                 </v-btn>
             </v-card-actions>
         </v-card>

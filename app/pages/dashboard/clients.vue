@@ -2,5 +2,9 @@
 definePageMeta({ middleware: ['auth'] });
 </script>
 <template>
-  <DashboardsClientTable />
+  <v-row>
+    <v-col cols="12" sm="12" lg="12">
+      <DashboardsClientTable status="internal" />
+    </v-col>
+  </v-row>
 </template>

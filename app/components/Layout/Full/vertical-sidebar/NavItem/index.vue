@@ -5,11 +5,11 @@ const props = defineProps({ item: Object, level: Number })
 
 <template>
     <!---Single Item-->
-    <div class="mb-3">
+    <div class="mb-5">
         <v-list-item
             :to="item.type === 'external' ? '' : item.to"
             :href="item.type === 'external' ? item.to : ''"
-zzz            rounded
+            rounded
             class="bg-hover-warning"
             color="warning"
             :ripple="false"

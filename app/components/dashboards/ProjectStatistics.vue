@@ -36,6 +36,7 @@
                 <!-- Chart Area -->
                 <div>
                     <apexchart
+                        ref="chartRef"
                         type="line"
                         height="140"
                         width="100%"
@@ -49,7 +50,7 @@
 </template>
 
 <script setup>
-import { computed, defineProps, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { VSkeletonLoader } from 'vuetify/components';
 
 const props = defineProps({
@@ -59,7 +60,8 @@ const props = defineProps({
     },
 });
 
-const loading = ref(true); // Set to false when data is loaded
+const loading = ref(true);
+const chartRef = ref(null);
 
 // Computed property to calculate overdue projects
 const overdueCount = computed(() => {
@@ -92,10 +94,59 @@ watch(
                         newData['Overdue'] || 0,
                     ]
                 }];
-        loading.value = false; // Set loading to false when data is loaded
+        loading.value = false;
     },
     { deep: true, immediate: true }
 );
+
+// Resize observer untuk adaptasi chart saat sidebar berubah
+let resizeObserver = null;
+let rafId = null;
+
+const updateChartSize = () => {
+    // Cancel previous animation frame
+    if (rafId) {
+        cancelAnimationFrame(rafId);
+    }
+    
+    // Use requestAnimationFrame untuk smooth rendering
+    rafId = requestAnimationFrame(() => {
+        if (chartRef.value && chartRef.value.chart) {
+            const container = chartRef.value.$el?.parentElement;
+            if (container) {
+                const newWidth = container.offsetWidth;
+                chartRef.value.chart.updateOptions({
+                    chart: {
+                        width: newWidth
+                    }
+                }, false, false, false);
+            }
+        }
+        rafId = null;
+    });
+};
+
+onMounted(() => {
+    nextTick(() => {
+        // Observe chart container langsung
+        const chartContainer = chartRef.value?.$el?.parentElement;
+        if (chartContainer) {
+            resizeObserver = new ResizeObserver(() => {
+                updateChartSize();
+            });
+            resizeObserver.observe(chartContainer);
+        }
+    });
+});
+
+onBeforeUnmount(() => {
+    if (resizeObserver) {
+        resizeObserver.disconnect();
+    }
+    if (rafId) {
+        cancelAnimationFrame(rafId);
+    }
+});
 
 const chartOptions = computed(() => ({
     chart: {
@@ -104,7 +155,9 @@ const chartOptions = computed(() => ({
         fontFamily: "'Plus Jakarta Sans', sans-serif",
         toolbar: { show: false },
         background: 'transparent',
-        width: '100%'
+        animations: {
+            enabled: false
+        }
     },
     stroke: {
         curve: 'smooth',

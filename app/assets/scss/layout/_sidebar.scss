@@ -76,7 +76,7 @@
         transform: scaleX(0);
         transform-origin: left center;
         transition: transform 0.4s ease, width 0.4s ease, opacity 0.4s ease;
-        border-radius: 8px;
+        border-radius: 0 8px 8px 0;
         z-index: 0;
     }
 
@@ -124,7 +124,7 @@
         height: 60%;
         width: 4px;
         background: #FF5F00;
-        border-radius: 0 4px 4px 0;
+        border-radius: 0 8px 8px 0;
         z-index: 3;
     }
 
@@ -176,3 +176,14 @@
     /* Remove previous complex hover/active structure for simpler dark style */
 }
 
+/* Rail mode styles */
+.leftSidebar.v-navigation-drawer--rail {
+    .scrollnavbar {
+        .v-list-item {
+            width: 45px !important;
+                    
+        }
+
+
+    }
+}

@@ -92,96 +92,56 @@ const contractInformation = computed(() => [
 </script>
 
 <template>
-    <v-row v-if="projectLoaded">
-        <v-col cols="12">
-            <div class="w-full flex flex-col gap-5">
-                <span class="font-bold">Informations</span>
-                <v-row class="p-3">
-                    <v-col
-                        v-for="(item, index) in information"
-                        :key="index"
-                        cols="12"
-                        sm="12"
-                        md="6"
-                        lg="6"
-                    >
-                        <div class="text-xs grid grid-cols-12 gap-2 w-full">
-                            <div
-                                class="flex gap-2 col-span-6 md:col-span-5 lg:col-span-4"
-                            >
-                                <v-icon class="text-gray-400">{{
-                                    item.icon
-                                }}</v-icon>
-                                <b>{{ item.label }}</b>
-                            </div>
-                            <b class="col-span-2">:</b>
-                            <span
-                                class="text-end col-span-4 md:col-span-5 lg:col-span-6"
-                            >
-                                {{ item.value || '-' }}
-                            </span>
-                        </div>
-                    </v-col>
-                </v-row>
-
-                <v-divider></v-divider>
-
-                <span class="font-bold">Contract Informations</span>
-                <v-row class="p-3">
-                    <v-col
-                        v-for="(item, index) in contractInformation"
-                        :key="index"
-                        cols="12"
-                        sm="12"
-                        md="6"
-                        lg="6"
-                    >
-                        <div class="text-xs grid grid-cols-12 gap-2 w-full">
-                            <div
-                                class="flex gap-2 col-span-6 md:col-span-5 lg:col-span-4"
-                            >
-                                <v-icon class="text-gray-400">{{
-                                    item.icon
-                                }}</v-icon>
-                                <b>{{ item.label }}</b>
-                            </div>
-                            <b class="col-span-2">:</b>
-                            <span
-                                class="text-end col-span-4 md:col-span-5 lg:col-span-6"
-                            >
-                                {{ item.value || '-' }}
-                            </span>
-                        </div>
-                    </v-col>
-                </v-row>
+    <div v-if="projectLoaded">
+        <v-card elevation="0" rounded="lg" style="border: 1px solid #F4F4F4;" class="pa-4">
+            <h4 class="text-body-1 font-weight-semibold mb-4">Informations</h4>
+            <v-divider class="mb-4"></v-divider>
+            
+            <div class="d-flex flex-column ga-3">
+                <div
+                    v-for="(item, index) in information"
+                    :key="index"
+                    class="d-flex align-center justify-space-between"
+                >
+                    <div class="d-flex align-center ga-2">
+                        <v-icon size="18" class="text-grey-darken-1">{{ item.icon }}</v-icon>
+                        <span class="text-body-2 text-grey-darken-2">{{ item.label }}</span>
+                    </div>
+                    <span class="text-body-2 font-weight-medium text-grey-darken-3">
+                        {{ item.value || '-' }}
+                    </span>
+                </div>
             </div>
-        </v-col>
-    </v-row>
+        </v-card>
 
-    <div v-else>
-        <v-skeleton-loader
-            v-for="i in 6"
-            :key="i"
-            type="table-row"
-            class="w-full h-full"
-        />
-        <v-skeleton-loader type="table-row-divider" class="w-full h-full" />
+        <v-card elevation="0" rounded="lg" style="border: 1px solid #F4F4F4;" class="pa-4 mt-4">
+            <h4 class="text-body-1 font-weight-semibold mb-4">Contract Informations</h4>
+            <v-divider class="mb-4"></v-divider>
+            
+            <div class="d-flex flex-column ga-3">
+                <div
+                    v-for="(item, index) in contractInformation"
+                    :key="index"
+                    class="d-flex align-center justify-space-between"
+                >
+                    <div class="d-flex align-center ga-2">
+                        <v-icon size="18" class="text-grey-darken-1">{{ item.icon }}</v-icon>
+                        <span class="text-body-2 text-grey-darken-2">{{ item.label }}</span>
+                    </div>
+                    <span class="text-body-2 font-weight-medium text-grey-darken-3">
+                        {{ item.value || '-' }}
+                    </span>
+                </div>
+            </div>
+        </v-card>
+    </div>
+
+    <div v-else class="d-flex flex-column ga-2">
+        <v-skeleton-loader type="card" />
+        <v-skeleton-loader type="card" />
     </div>
 </template>
 
 <style scoped>
-.v-row {
-    margin-left: 0;
-    margin-right: 0;
-}
-
-.text-xs {
-    font-size: 0.75rem;
-}
-
-@media (max-width: 600px) {
-    .text-xs {
-        font-size: 0.65rem;
-    }
-}
+/* No custom styles needed - using Vuetify utility classes */
 </style>
