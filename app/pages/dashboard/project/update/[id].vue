@@ -260,10 +260,10 @@ onMounted(() => {
 
         <!-- Navigation Buttons -->
         <v-row justify="space-between" class="p-5">
-            <v-btn @click="previousStep" :disabled="currentStep === 1"
+            <v-btn @click="previousStep" :style="{ color: '#111'}" :disabled="currentStep === 1"
                 >Previous</v-btn
             >
-            <v-btn @click="nextStep" color="primary">
+            <v-btn @click="nextStep" :style="{ background:'#111', color:'#fff', fontWeight:600 }">
                 {{ currentStep === totalSteps ? 'Done' : 'Next' }}
             </v-btn>
         </v-row>

@@ -3,6 +3,7 @@
         <v-col cols="12" md="8" class="flex flex-col gap-4">
             <v-data-table-server
                 v-model:page="tableOptions.page"
+                v-model:items-per-page="tableOptions.itemsPerPage"
                 :headers="headers"
                 :items="users"
                 :items-length="totalUsers"
@@ -12,7 +13,7 @@
                 show-select
                 :hide-default-footer="true"
                 @update:options="loadItems"
-                :items-per-page-options="[{ value: 10, title: '10' }]"
+                :items-per-page-options="[{ value: 10, title: '10' }, { value: 25, title: '25' }, { value: 50, title: '50' }]"
                 class="border p-5 rounded-xl"
             >
                 <template v-slot:top>
@@ -26,7 +27,6 @@
                             flat
                             hide-details
                             single-line
-                            clearable
                         ></v-text-field>
                         <div class="flex items-center gap-1 ml-3 text-xs font-medium">
                             <span class="text-gray-800">{{ pageStart }}-{{ pageEnd }} of {{ totalUsers }}</span>
@@ -35,31 +35,31 @@
                             <v-btn class="h-7 w-7" icon="mdi-chevron-right" variant="text" size="x-small" @click="goNext" :disabled="tableOptions.page * tableOptions.itemsPerPage >= totalUsers" />
                             <v-btn class="h-7 w-7" icon="mdi-chevron-double-right" variant="text" size="x-small" @click="goLast" :disabled="tableOptions.page * tableOptions.itemsPerPage >= totalUsers" />
                         </div>
-                        <v-dialog v-model="dialog" max-width="700px" persistent>
+                        <v-dialog v-model="dialog" max-width="1000px" persistent>
                             <template v-slot:activator="{ props }">
-                                <v-btn class="mx-5" color="primary" variant="outlined" dark v-bind="props"
+                                <v-btn class="mx-5" variant="flat" :style="{ background:'#111', color:'#fff', fontWeight:600 }" rounded="lg" dark v-bind="props"
                                     @click="openNewUserDialog">
                                     New User
                                 </v-btn>
                             </template>
                             <v-card>
-                                <v-card-title class="pa-4">
-                                    <span class="text-h5">{{ formTitle }}</span>
-                                </v-card-title>
-                                <v-card-text class="pt-0">
+                                <v-card-text class="w-full">
                                     <UserForm ref="userFormCompRef" v-model="editedUser"
                                         @update:potential-validity="isFormPotentiallyValid = $event" />
+                                    <div class="flex justify-between">
+                                        <span class="text-h5 pa-4">{{ formTitle }}</span>
+                                        <v-card-actions class="pa-4">
+                                            <v-spacer></v-spacer>
+                                            <v-btn color="blue-grey-lighten-1" variant="text" @click="close">
+                                                Cancel
+                                            </v-btn>
+                                            <v-btn :style="{ background:'#111', color:'#fff'}" variant="flat" @click="save" :loading="saving"
+                                                :disabled="!isFormPotentiallyValid || saving">
+                                                Save
+                                            </v-btn>
+                                        </v-card-actions>
+                                    </div>
                                 </v-card-text>
-                                <v-card-actions class="pa-4">
-                                    <v-spacer></v-spacer>
-                                    <v-btn color="blue-grey-lighten-1" variant="text" @click="close">
-                                        Cancel
-                                    </v-btn>
-                                    <v-btn color="primary" variant="flat" @click="save" :loading="saving"
-                                        :disabled="!isFormPotentiallyValid || saving">
-                                        Save
-                                    </v-btn>
-                                </v-card-actions>
                             </v-card>
                         </v-dialog>
                         <UserDeleteConfirm :showModal="dialogDelete" @update:showModal="dialogDelete = $event"
@@ -99,7 +99,6 @@
 
                 <template v-slot:no-data>
                     <div class="d-flex flex-column align-center justify-center pa-4">
-                        <v-icon size="x-large" color="grey-lighten-1" class="mb-2">mdi-database-off-outline</v-icon>
                         <div class="text-subtitle-1 grey--text text--darken-1 mb-2">No users found.</div>
                         <v-btn color="primary" @click="refreshTable">Refresh</v-btn>
                     </div>
@@ -123,13 +122,13 @@
                 </div>
                 <div class="mt-3 text-xs opacity-95 truncate">Dasa Apprilindo Sentosa</div>
             </v-card>
-            <v-card v-if="infoShow" class="details-card mt-5" rounded="xl" elevation="1">
+            <v-card v-if="infoShow" class="details-card p-5 mt-5" rounded="xl" elevation="1">
                 <!-- Details card -->
                 <UserDetail :item="editedUser" />
             </v-card>
-            <v-card v-else class="details-card flex items-center justify-center p-8 mt-5" rounded="xl" elevation="1">
-                <div class="text-center my-8">
-                    <v-icon size="36 text-gray-500">mdi-account-outline</v-icon>
+            <v-card v-else class="details-card p-5 mt-5" rounded="xl" elevation="1">
+                <div class="text-center align-middle mt-16">
+                    <v-icon size="40" class="text-gray-500">mdi-account-outline</v-icon>
                     <div class="mt-2 font-medium">No User selected</div>
                     <div class="text-sm v">Select a user to read</div>
                 </div>
@@ -139,7 +138,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useUserStore } from '@/stores/User';
 import UserForm from '@/components/dashboards/User/Form.vue';
 import UserDetail from '@/components/dashboards/User/Detail.vue';
@@ -153,12 +152,11 @@ const dialogDelete = ref(false);
 const infoShow = ref(false);
 const loading = ref(true);
 const saving = ref(false);
-const search = ref('');
+const search = ref(null);
 const userFormCompRef = ref(null);
 const isFormPotentiallyValid = ref(false);
 
 const headers = [
-    { title: '#', key: 'number', sortable: false, width: '5%' },
     { title: 'Photo', key: 'photo', sortable: false, width: '10%' },
     { title: 'Full Name', key: 'full_name', sortable: true, width: '25%' },
     { title: 'Email', key: 'email', sortable: true, width: '35%' },
@@ -353,6 +351,16 @@ async function save() {
         saving.value = false;
     }
 }
+
+// Initial load to populate table
+onMounted(() => {
+    loadItems({
+        page: tableOptions.page,
+        itemsPerPage: tableOptions.itemsPerPage,
+        sortBy: tableOptions.sortBy,
+        search: search.value,
+    });
+});
 </script>
 
 <style scoped>
@@ -381,7 +389,7 @@ async function save() {
     background: #f3f4f6 !important;
 }
 .client-summary {
-    background: linear-gradient(90deg, #ff6a00 0%, #ff7a00 100%);
+    background: #FF5F00;
     color: #fff;
     border-radius: 16px;
 }

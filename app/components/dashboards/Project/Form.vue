@@ -76,7 +76,7 @@
                 <h1>Form documents</h1>
             </v-tabs-window-item>
         </v-tabs-window>
-        <v-btn type="submit" color="primary" class="ml-5 mb-5" v-if="!isInfo">
+        <v-btn type="submit" :style="{ background:'#111', color:'#fff', fontWeight:600 }" class="ml-5 mb-5" v-if="!isInfo">
             Save
         </v-btn>
     </form>

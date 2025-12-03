@@ -16,9 +16,9 @@ const infoShow = ref(false);
 const loading = ref(true);
 const search = ref(null);
 const currentPage = ref(1);
+const currentSort = ref([]);
 
 const headers = [
-    { title: '#', key: 'number', sortable: false },
     { title: 'Name', key: 'name', sortable: true },
     { title: 'Phone', key: 'phone', sortable: false },
     { title: 'Email', key: 'email', sortable: false },
@@ -80,25 +80,79 @@ watch(dialogDelete, val => {
 
 // Reload data when page changes via top chevrons
 watch(currentPage, async (page) => {
-    await loadItems({ page, itemsPerPage: clients.page.per_page });
+    await loadItems({ page, itemsPerPage: clients.page.per_page, sortBy: currentSort.value });
 });
 
-const loadItems = async ({ page, itemsPerPage }) => {
+// Reset to first page and reload when search changes
+watch(search, async () => {
+    currentPage.value = 1;
+    await loadItems({ page: 1, itemsPerPage: clients.page.per_page, sortBy: currentSort.value });
+});
+
+const loadItems = async ({ page, itemsPerPage, sortBy = [] }) => {
     loading.value = true;
     currentPage.value = page;
+    currentSort.value = Array.isArray(sortBy) ? sortBy : [];
 
-    const clientsData = await clientStore.fetchAll(
-        page,
+    // Fetch first page to get count and per_page
+    const firstPage = await clientStore.fetchAll(
+        1,
         search.value || '',
         status.value,
         itemsPerPage || clients.page.per_page
     );
-    clients.page.count_result = clientsData.page.count_result;
+    const totalCount = firstPage.page?.count_result || 0;
+    const perPage = firstPage.page?.per_page || (itemsPerPage || clients.page.per_page);
+    clients.page.count_result = totalCount;
 
-    clients.results = clientsData.results.map((client, index) => ({
-        ...client,
-        number: index + 1 + itemsPerPage * (page - 1),
-    }));
+    // Build dataset for sorting across pages when sort is active
+    let allResults = Array.isArray(firstPage.results) ? [...firstPage.results] : [];
+    const totalPages = Math.ceil(totalCount / perPage);
+    const hasSort = Array.isArray(sortBy) && sortBy.length > 0;
+    if (hasSort && totalPages > 1) {
+        for (let p = 2; p <= totalPages; p++) {
+            const pageData = await clientStore.fetchAll(p, search.value || '', status.value, perPage);
+            if (Array.isArray(pageData.results)) allResults.push(...pageData.results);
+        }
+    } else if (!hasSort && page !== 1) {
+        // No sort: fetch only requested page and use it directly
+        const pageData = await clientStore.fetchAll(page, search.value || '', status.value, perPage);
+        const pageResults = Array.isArray(pageData.results) ? [...pageData.results] : [];
+        clients.results = pageResults.map((client, index) => ({
+            ...client,
+            number: (page - 1) * perPage + index + 1,
+        }));
+        loading.value = false;
+        return;
+    }
+
+    // Apply client-side sort globally
+    if (Array.isArray(sortBy) && sortBy.length > 0) {
+        const { key, order } = sortBy[0];
+        const dir = order === 'desc' ? -1 : 1;
+        allResults.sort((a, b) => {
+            const va = a?.[key] ?? '';
+            const vb = b?.[key] ?? '';
+            if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+            return String(va).localeCompare(String(vb)) * dir;
+        });
+    }
+
+    // If sorting, slice globally-sorted dataset; else use first page directly
+    if (hasSort) {
+        const startIndex = (page - 1) * perPage;
+        const pageSlice = allResults.slice(startIndex, startIndex + perPage);
+        clients.results = pageSlice.map((client, index) => ({
+            ...client,
+            number: startIndex + index + 1,
+        }));
+    } else {
+        const firstPageResults = Array.isArray(firstPage.results) ? firstPage.results : [];
+        clients.results = firstPageResults.map((client, index) => ({
+            ...client,
+            number: index + 1,
+        }));
+    }
     loading.value = false;
 };
 
@@ -123,6 +177,7 @@ const initialize = async () => {
 const editItem = item => {
     editedIndex.value = clients.results.indexOf(item);
     Object.assign(editedItem, item);
+    infoShow.value = false; // ensure form is visible when editing
     dialog.value = true;
 };
 
@@ -214,7 +269,7 @@ const goLast = () => { const maxPage = Math.ceil(totalItems.value / clients.page
                 <template v-slot:top>
                     <v-toolbar flat color="containerBg">
                         <v-toolbar-title>{{ status == 'eksternal' ? 'End User' : 'Client' }} Table</v-toolbar-title>
-                        <v-dialog v-model="dialog" max-width="800px">
+                        <v-dialog v-model="dialog" max-width="1000px">
                             <template
                                 v-slot:activator="{ props }"
                                 v-can="pagePermission.client.add"
@@ -247,11 +302,6 @@ const goLast = () => { const maxPage = Math.ceil(totalItems.value / clients.page
                                 </v-btn>
                             </template>
                             <v-card>
-                                <v-card-title>
-                                    <span class="text-h5">{{
-                                        infoShow ? 'Info User' : formTitle
-                                    }}</span>
-                                </v-card-title>
                                 <v-card-text class="w-full">
                                     <form
                                         @submit.prevent="save"
@@ -262,30 +312,37 @@ const goLast = () => { const maxPage = Math.ceil(totalItems.value / clients.page
                                             :editedItem="editedItem"
                                             @update:editedItem="updateEditedItem"
                                         />
-                                        <v-card-actions>
-                                            <v-spacer></v-spacer>
-                                            <v-btn
-                                                color="error"
-                                                variant="outlined"
-                                                @click="close"
-                                            >
-                                                Cancel
-                                            </v-btn>
-                                            <v-btn
-                                                color="primary"
-                                                variant="outlined"
-                                                type="submit"
-                                            >
-                                                Save
-                                            </v-btn>
-                                        </v-card-actions>
+                                        <div class="flex justify-between">
+                                            <span class="text-h5">{{
+                                                infoShow ? 'Info User' : formTitle
+                                            }}</span>
+                                            <v-card-actions>
+                                                <v-spacer></v-spacer>
+                                                <v-btn
+                                                    color="black"
+                                                    variant="outlined"
+                                                    rounded="lg"
+                                                    @click="close"
+                                                >
+                                                    Cancel
+                                                </v-btn>
+                                                <v-btn
+                                                    :style="{ background:'#111', color:'#fff'}"
+                                                    variant="outlined"
+                                                    rounded="lg"
+                                                    type="submit"
+                                                >
+                                                    Save
+                                                </v-btn>
+                                            </v-card-actions>
+                                        </div>
                                     </form>
                                     <div v-else>
                                         <DashboardsClientDetail :item="editedItem" />
                                         <v-card-actions>
                                             <v-spacer></v-spacer>
                                             <v-btn
-                                                color="primary"
+                                                color="black"
                                                 variant="outlined"
                                                 @click="close"
                                             >
@@ -329,7 +386,7 @@ const goLast = () => { const maxPage = Math.ceil(totalItems.value / clients.page
             </v-data-table-server>
         </v-col>
         <v-col cols="12" md="4" class="flex flex-col gap-4">
-            <v-card class="client-summary px-5 py-5" rounded="xl" elevation="1">
+            <v-card class="px-5 py-5" rounded="xl" elevation="1" :style="{ backgroundColor: '#FF5F00', color: 'white' }">
                 <div class="flex items-center gap-4">
                     <v-avatar size="56">
                         <v-img :src="userStore.user?.photo || '/images/profile/user.png'" :alt="userStore.user?.full_name"></v-img>
@@ -347,9 +404,9 @@ const goLast = () => { const maxPage = Math.ceil(totalItems.value / clients.page
                 <!-- Details card -->
                 <DashboardsClientDetail :item="editedItem" />
             </v-card>
-            <v-card v-else class="details-card flex items-center justify-center p-8 mt-5" rounded="xl" elevation="1">
-                <div class="text-center my-8">
-                    <v-icon size="36 text-gray-500">mdi-account-outline</v-icon>
+            <v-card v-else class="details-card p-5 mt-5" rounded="xl" elevation="1">
+                <div class="text-center align-middle mt-16">
+                    <v-icon size="40" class="text-gray-500">mdi-account-outline</v-icon>
                     <div class="mt-2 font-medium">No {{ status == 'eksternal' ? 'End User' : 'Client' }} selected</div>
                     <div class="text-sm v">Select a {{ status == 'eksternal' ? 'end user' : 'client' }} to read</div>
                 </div>
@@ -389,11 +446,6 @@ const goLast = () => { const maxPage = Math.ceil(totalItems.value / clients.page
 }
 .visit-btn:hover {
     background: #f3f4f6 !important;
-}
-.client-summary {
-    background: linear-gradient(90deg, #ff6a00 0%, #ff7a00 100%);
-    color: #fff;
-    border-radius: 16px;
 }
 .details-card {
     background: #fff;

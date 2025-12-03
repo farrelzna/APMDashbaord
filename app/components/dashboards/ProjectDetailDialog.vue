@@ -107,7 +107,7 @@ const handleOutsideClick = (value) => {
                                 :key="finance.id || finance.name"
                                 class="d-flex align-center ga-3"
                             >
-                                <div style="width: 4px; height: 48px; background-color: #FF5F00; border-radius: 2px; flex-shrink: 0;"></div>
+                                <div style="width: 6px; height: 48px; background-color: #FF5F00; border-radius: 2px; flex-shrink: 0;"></div>
                                 <div class="d-flex align-center justify-space-between flex-grow-1">
                                     <div class="d-flex flex-column ga-1">
                                         <div class="text-body-2 font-weight-bold">{{ finance.name }}</div>
@@ -135,7 +135,7 @@ const handleOutsideClick = (value) => {
                                 :key="status.id || status.description + status.date_submit"
                                 class="d-flex align-center ga-3"
                             >
-                                <div style="width: 4px; height: 48px; background-color: #3B82F6; border-radius: 2px; flex-shrink: 0;"></div>
+                                <div style="width: 6px; height: 48px; background-color: #3B82F6; border-radius: 2px; flex-shrink: 0;"></div>
                                 <div class="d-flex align-center justify-space-between flex-grow-1">
                                     <div class="text-body-2 font-weight-medium">{{ status.description }}</div>
                                     <v-chip

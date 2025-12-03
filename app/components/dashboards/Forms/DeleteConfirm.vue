@@ -2,11 +2,11 @@
     <v-dialog
         :model-value="showModal"
         @update:model-value="updateModalValue"
-        max-width="500px"
+        max-width="800px"
     >
-        <v-card>
-            <v-toolbar dark dense flat>
-                <v-toolbar-title class="font-weight-bold text-red-500">
+        <v-card class="py-5 px-3">
+            <v-toolbar :style="{background: '#fff'}">
+                <v-toolbar-title class="font-weight-bold text-red-600">
                     Are you sure?
                 </v-toolbar-title>
             </v-toolbar>
@@ -14,7 +14,8 @@
                 This action <strong>CANNOT</strong> be undone. Please be
                 absolutely certain you want to proceed before confirming.
             </v-card-text>
-            <v-card-actions class="pt-3">
+            <v-divider></v-divider>
+            <v-card-actions class="py-3">
                 <v-spacer></v-spacer>
                 <v-btn
                     color="grey"
@@ -27,6 +28,7 @@
                     color="error"
                     class="body-2 font-weight-bold"
                     variant="outlined"
+                    rounded="lg"
                     @click="deleteAction"
                     >Confirm</v-btn
                 >

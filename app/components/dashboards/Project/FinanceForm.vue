@@ -97,7 +97,7 @@
             </v-row>
             <div class="flex gap-2 pt-5">
                 <v-btn
-                    color="primary"
+                    :style="{ background:'#111', color:'#fff', fontWeight:600 }"
                     class="flex self-end"
                     @click="submitForm"
                 >

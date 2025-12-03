@@ -22,7 +22,7 @@
                                 v-model="task.note"
                             ></v-textarea>
 
-                            <v-btn color="primary" @click="saveTask">
+                            <v-btn :style="{ background:'#111', color:'#fff', fontWeight:600 }" @click="saveTask">
                                 {{ isEditing ? 'Save Task' : 'Add Task' }}
                             </v-btn>
                         </v-form>

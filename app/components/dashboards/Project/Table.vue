@@ -15,7 +15,6 @@ const pageEnd = computed(() => Math.min(tableOptions.page * tableOptions.itemsPe
 import { colorByStatus } from '@/utils/colorByStatus';
 
 const headers = [
-    { title: '#', key: 'number', sortable: false },
     { title: 'PID', key: 'pid', sortable: false },
     { title: 'Project Name', key: 'name', sortable: false },
     { title: 'User', key: 'customer_str.name', sortable: false },
@@ -227,8 +226,8 @@ provide('refreshData', initialize);
 
                 <v-btn
                     class="mx-5"
-                    color="primary"
-                    variant="outlined"
+                    :style="{ background:'#111', color:'#fff', fontWeight:600 }"
+                    variant="flat"
                     dark
                     v-can="pagePermission.project.add"
                     @click="navigateTo('/dashboard/project/create')"
