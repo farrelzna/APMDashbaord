@@ -53,7 +53,7 @@
                                             <v-btn color="blue-grey-lighten-1" variant="text" @click="close">
                                                 Cancel
                                             </v-btn>
-                                            <v-btn :style="{ background:'#111', color:'#fff'}" variant="flat" @click="save" :loading="saving"
+                                            <v-btn :style="{ background:'#1e1e1e', color:'#fff'}" variant="flat" @click="save" :loading="saving"
                                                 :disabled="!isFormPotentiallyValid || saving">
                                                 Save
                                             </v-btn>

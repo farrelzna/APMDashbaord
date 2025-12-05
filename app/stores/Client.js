@@ -22,34 +22,46 @@ export const useClientStore = defineStore('client', () => {
         return handleRequest(`${config.public.apiBase}/client/all`, 'GET', authHeader);
     };
 
-    const update = (id, data) => {
+    const update = async (id, data) => {
         try {
             const formData = createFormData(data, fields);
-            handleRequest(`${config.public.apiBase}/client/${id}/`, 'PUT', authHeader, formData)
-                .then(response => response && toast.success('Client updated successfully'));
+            const response = await handleRequest(`${config.public.apiBase}/client/${id}/`, 'PUT', authHeader, formData);
+            if (response) {
+                toast.success('Client updated successfully');
+            }
+            return response;
         } catch (error) {
             toast.error('Failed to update client. Please try again.');
+            throw error;
         }
     };
 
-    const add = (data) => {
+    const add = async (data) => {
         try {
             const formData = createFormData(data, fields);
-            handleRequest(`${config.public.apiBase}/client/`, 'POST', authHeader, formData)
-                .then(response => response && toast.success('Client added successfully'));
+            const response = await handleRequest(`${config.public.apiBase}/client/`, 'POST', authHeader, formData);
+            if (response) {
+                toast.success('Client added successfully');
+            }
+            return response;
         } catch (error) {
             toast.error('Failed to add client. Please try again.');
+            throw error;
         }
     };
 
     const destroy = async (id) => {
         try {
-            handleRequest(`${config.public.apiBase}/client/${id}`, 'DELETE', authHeader)
-                .then(toast.success('Client delete succcessfully'))
+            const response = await handleRequest(`${config.public.apiBase}/client/${id}`, 'DELETE', authHeader);
+            if (response !== undefined) {
+                toast.success('Client deleted successfully');
+            }
+            return response;
         } catch (error) {
             toast.error('Failed to delete client. Please try again.');
+            throw error;
         }
-    }
+    };
 
     return {
         searchById,

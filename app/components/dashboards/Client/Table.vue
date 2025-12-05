@@ -8,23 +8,15 @@ const props = defineProps({
 });
 
 const userStore = useUserStore();
+const clientStore = useClientStore();
 
 const dialog = ref(false);
 const dialogDelete = ref(false);
-const clientStore = useClientStore();
 const infoShow = ref(false);
 const loading = ref(true);
 const search = ref(null);
 const currentPage = ref(1);
 const currentSort = ref([]);
-
-const headers = [
-    { title: 'Name', key: 'name', sortable: true },
-    { title: 'Phone', key: 'phone', sortable: false },
-    { title: 'Email', key: 'email', sortable: false },
-    { title: 'Website', key: 'web', sortable: false },
-    { title: 'Actions', key: 'actions', sortable: false },
-];
 
 const clients = reactive({
     page: { per_page: 10, count_result: 0 },
@@ -54,7 +46,7 @@ const defaultItem = {
     status: props.status
 };
 
-const deletedItem = ref(null);
+const deletedItem = ref(null); // ← Will be removed, use editedItem instead
 
 const formTitle = computed(() => {
     if (editedIndex.value === -1) {
@@ -80,7 +72,11 @@ watch(dialogDelete, val => {
 
 // Reload data when page changes via top chevrons
 watch(currentPage, async (page) => {
-    await loadItems({ page, itemsPerPage: clients.page.per_page, sortBy: currentSort.value });
+    try {
+        await loadItems({ page, itemsPerPage: clients.page.per_page, sortBy: currentSort.value });
+    } catch (error) {
+        console.error('Failed to load page:', error);
+    }
 });
 
 // Reset to first page and reload when search changes
@@ -94,84 +90,101 @@ const loadItems = async ({ page, itemsPerPage, sortBy = [] }) => {
     currentPage.value = page;
     currentSort.value = Array.isArray(sortBy) ? sortBy : [];
 
-    // Fetch first page to get count and per_page
-    const firstPage = await clientStore.fetchAll(
-        1,
-        search.value || '',
-        status.value,
-        itemsPerPage || clients.page.per_page
-    );
-    const totalCount = firstPage.page?.count_result || 0;
-    const perPage = firstPage.page?.per_page || (itemsPerPage || clients.page.per_page);
-    clients.page.count_result = totalCount;
-
-    // Build dataset for sorting across pages when sort is active
-    let allResults = Array.isArray(firstPage.results) ? [...firstPage.results] : [];
-    const totalPages = Math.ceil(totalCount / perPage);
-    const hasSort = Array.isArray(sortBy) && sortBy.length > 0;
-    if (hasSort && totalPages > 1) {
-        for (let p = 2; p <= totalPages; p++) {
-            const pageData = await clientStore.fetchAll(p, search.value || '', status.value, perPage);
-            if (Array.isArray(pageData.results)) allResults.push(...pageData.results);
+    try {
+        // Fetch first page to get count and per_page
+        const firstPage = await clientStore.fetchAll(
+            1,
+            search.value || '',
+            status.value,
+            itemsPerPage || clients.page.per_page
+        );
+        
+        if (!firstPage?.page) {
+            clients.results = [];
+            clients.page.count_result = 0;
+            return;
         }
-    } else if (!hasSort && page !== 1) {
-        // No sort: fetch only requested page and use it directly
-        const pageData = await clientStore.fetchAll(page, search.value || '', status.value, perPage);
-        const pageResults = Array.isArray(pageData.results) ? [...pageData.results] : [];
-        clients.results = pageResults.map((client, index) => ({
-            ...client,
-            number: (page - 1) * perPage + index + 1,
-        }));
+
+        const totalCount = firstPage.page.count_result || 0;
+        const perPage = firstPage.page.per_page || (itemsPerPage || clients.page.per_page);
+        clients.page.count_result = totalCount;
+        clients.page.per_page = perPage;
+
+        // Build dataset for sorting across pages when sort is active
+        let allResults = Array.isArray(firstPage.results) ? [...firstPage.results] : [];
+        const totalPages = Math.ceil(totalCount / perPage);
+        const hasSort = Array.isArray(sortBy) && sortBy.length > 0;
+        
+        // OPTIMIZATION: Limit max pages for client-side sorting to prevent performance issues
+        const MAX_SORT_PAGES = 10; // Max 100 items (10 pages × 10 items)
+        
+        if (hasSort && totalPages > 1) {
+            if (totalPages > MAX_SORT_PAGES) {
+                console.warn(`Too many pages (${totalPages}) for client-side sorting. Limited to ${MAX_SORT_PAGES} pages.`);
+            }
+            const pagesToFetch = Math.min(totalPages, MAX_SORT_PAGES);
+            
+            for (let p = 2; p <= pagesToFetch; p++) {
+                const pageData = await clientStore.fetchAll(p, search.value || '', status.value, perPage);
+                if (Array.isArray(pageData.results)) allResults.push(...pageData.results);
+            }
+        } else if (!hasSort && page !== 1) {
+            // No sort: fetch only requested page and use it directly
+            const pageData = await clientStore.fetchAll(page, search.value || '', status.value, perPage);
+            const pageResults = Array.isArray(pageData.results) ? [...pageData.results] : [];
+            clients.results = pageResults.map((client, index) => ({
+                ...client,
+                number: (page - 1) * perPage + index + 1,
+            }));
+            return;
+        }
+
+        // Apply client-side sort globally
+        if (Array.isArray(sortBy) && sortBy.length > 0) {
+            const { key, order } = sortBy[0];
+            const dir = order === 'desc' ? -1 : 1;
+            allResults.sort((a, b) => {
+                const va = a?.[key] ?? '';
+                const vb = b?.[key] ?? '';
+                if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+                return String(va).localeCompare(String(vb)) * dir;
+            });
+        }
+
+        // If sorting, slice globally-sorted dataset; else use first page directly
+        if (hasSort) {
+            const startIndex = (page - 1) * perPage;
+            const pageSlice = allResults.slice(startIndex, startIndex + perPage);
+            clients.results = pageSlice.map((client, index) => ({
+                ...client,
+                number: startIndex + index + 1,
+            }));
+        } else {
+            const firstPageResults = Array.isArray(firstPage.results) ? firstPage.results : [];
+            clients.results = firstPageResults.map((client, index) => ({
+                ...client,
+                number: index + 1,
+            }));
+        }
+    } catch (error) {
+        console.error('Failed to load items:', error);
+        clients.results = [];
+    } finally {
         loading.value = false;
-        return;
     }
-
-    // Apply client-side sort globally
-    if (Array.isArray(sortBy) && sortBy.length > 0) {
-        const { key, order } = sortBy[0];
-        const dir = order === 'desc' ? -1 : 1;
-        allResults.sort((a, b) => {
-            const va = a?.[key] ?? '';
-            const vb = b?.[key] ?? '';
-            if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
-            return String(va).localeCompare(String(vb)) * dir;
-        });
-    }
-
-    // If sorting, slice globally-sorted dataset; else use first page directly
-    if (hasSort) {
-        const startIndex = (page - 1) * perPage;
-        const pageSlice = allResults.slice(startIndex, startIndex + perPage);
-        clients.results = pageSlice.map((client, index) => ({
-            ...client,
-            number: startIndex + index + 1,
-        }));
-    } else {
-        const firstPageResults = Array.isArray(firstPage.results) ? firstPage.results : [];
-        clients.results = firstPageResults.map((client, index) => ({
-            ...client,
-            number: index + 1,
-        }));
-    }
-    loading.value = false;
 };
 
 const initialize = async () => {
-    loading.value = true;
-    status.value = props.status;
-    const clientsData = await clientStore.fetchAll(
-        1,
-        search.value || '',
-        status.value,
-        clients.page.per_page
-    );
-    clients.page.count_result = clientsData.page.count_result;
-
-    clients.results = clientsData.results.map((client, index) => ({
-        ...client,
-        number: index + 1 + clients.page.count_result * 0,
-    }));
-    loading.value = false;
+    // Reset detail panel saat refresh
+    infoShow.value = false;
+    Object.assign(editedItem, defaultItem);
+    editedIndex.value = -1;
+    
+    await loadItems({ 
+        page: 1, 
+        itemsPerPage: clients.page.per_page, 
+        sortBy: currentSort.value 
+    });
 };
 
 const editItem = item => {
@@ -190,14 +203,25 @@ const infoItem = item => {
 const deleteItem = item => {
     editedIndex.value = clients.results.indexOf(item);
     Object.assign(editedItem, item);
-    deletedItem.value = item;
     dialogDelete.value = true;
 };
 
 const deleteItemConfirm = async () => {
-    await clientStore.destroy(deletedItem.value.id);
-    await initialize();
-    closeDelete();
+    try {
+        await clientStore.destroy(editedItem.id);
+        await initialize();
+        closeDelete();
+    } catch (error) {
+        console.error('Delete failed:', error);
+    }
+};
+
+const openNewDialog = () => {
+    // Reset state untuk create mode
+    editedIndex.value = -1;
+    infoShow.value = false;
+    Object.assign(editedItem, defaultItem);
+    dialog.value = true;
 };
 
 const close = () => {
@@ -205,7 +229,6 @@ const close = () => {
     infoShow.value = false;
     Object.assign(editedItem, defaultItem);
     editedIndex.value = -1;
-    search.value = '';
 };
 
 const closeDelete = () => {
@@ -215,24 +238,39 @@ const closeDelete = () => {
 };
 
 const save = async () => {
-    if (editedIndex.value > -1) {
-        const client = clients.results[editedIndex.value];
-        Object.assign(client, editedItem);
-        clientStore.update(client.id, editedItem);
-    } else {
-        clients.results.push({ ...editedItem });
-        clientStore.add({ ...editedItem });
+    try {
+        if (editedIndex.value > -1) {
+            // Edit mode: await API call dulu
+            await clientStore.update(clients.results[editedIndex.value].id, editedItem);
+        } else {
+            // Create mode: await API call dulu
+            await clientStore.add({ ...editedItem });
+        }
+        
+        // Close dialog
+        close();
+        
+        // Refresh setelah API berhasil
+        await initialize();
+    } catch (error) {
+        console.error('Save failed:', error);
+        // Optional: show error toast
     }
-    close();
-    await initialize(); // Refresh the table after save
 };
 
 const updateEditedItem = item => {
     Object.assign(editedItem, item);
 };
 
-onMounted(() => {
-    initialize();
+onMounted(async () => {
+    try {
+        await Promise.all([
+            userStore.fetchUser(),
+            initialize()
+        ]);
+    } catch (error) {
+        console.error('Initialization failed:', error);
+    }
 });
 
 const pageStart = computed(() => {
@@ -243,214 +281,304 @@ const pageEnd = computed(() => {
     return Math.min(currentPage.value * clients.page.per_page, clients.page.count_result);
 });
 const totalItems = computed(() => clients.page.count_result);
+const totalPages = computed(() => Math.ceil(totalItems.value / clients.page.per_page));
 
-const goFirst = () => { if (currentPage.value > 1) currentPage.value = 1; };
-const goPrev = () => { if (currentPage.value > 1) currentPage.value--; };
-const goNext = () => { const maxPage = Math.ceil(totalItems.value / clients.page.per_page); if (currentPage.value < maxPage) currentPage.value++; };
-const goLast = () => { const maxPage = Math.ceil(totalItems.value / clients.page.per_page); if (currentPage.value < maxPage) currentPage.value = maxPage; };
+const goFirst = () => { 
+    if (currentPage.value > 1) currentPage.value = 1; 
+};
+const goPrev = () => { 
+    if (currentPage.value > 1) currentPage.value--; 
+};
+const goNext = () => { 
+    if (currentPage.value < totalPages.value) currentPage.value++; 
+};
+const goLast = () => { 
+    if (currentPage.value < totalPages.value) currentPage.value = totalPages.value; 
+};
+
+// Export functionality
+const exportData = (format) => {
+    const data = clients.results.map(client => ({
+        Name: client.name,
+        Email: client.email,
+        Phone: client.phone,
+        Website: client.web,
+        Address: client.address,
+    }));
+
+    if (format === 'csv') {
+        // CSV Export
+        const headers = Object.keys(data[0]);
+        const csvContent = [
+            headers.join(','),
+            ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${status.value}-${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    } else if (format === 'excel') {
+        // Excel Export (CSV with .xls extension, opens in Excel)
+        const headers = Object.keys(data[0]);
+        const csvContent = [
+            headers.join('\t'),
+            ...data.map(row => headers.map(header => row[header] || '').join('\t'))
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${status.value}-${new Date().toISOString().split('T')[0]}.xls`;
+        link.click();
+    }
+};
+
+// Sort functionality
+const currentSortValue = ref('name-asc');
+const handleSort = (sortValue) => {
+    currentSortValue.value = sortValue;
+    const sorted = [...clients.results];
+    
+    switch (sortValue) {
+        case 'name-asc':
+            sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            break;
+        case 'name-desc':
+            sorted.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+            break;
+        case 'date-desc':
+            sorted.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            break;
+        case 'date-asc':
+            sorted.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+            break;
+    }
+    
+    clients.results = sorted;
+};
 </script>
 
 <template>
-    <v-row class="gy-4" style="margin:0 !important">
-        <v-col cols="12" md="8" class="flex flex-col gap-4">
-            <v-data-table-server
-                v-model:page="currentPage"
-                :headers="headers"
-                :items="clients.results"
-                :loading="loading"
-                :items-length="clients.page.count_result"
-                :search="search"
-                :hide-default-footer="true"
-                show-select
-                density="comfortable"
-                @update:options="loadItems"
-                class="border p-5 rounded-xl"
-            >
-                <template v-slot:top>
-                    <v-toolbar flat color="containerBg">
-                        <v-toolbar-title>{{ status == 'eksternal' ? 'End User' : 'Client' }} Table</v-toolbar-title>
-                        <v-dialog v-model="dialog" max-width="1000px">
-                            <template
-                                v-slot:activator="{ props }"
-                                v-can="pagePermission.client.add"
-                            >
-                                <v-text-field
-                                    v-model="search"
-                                    density="compact"
-                                    label="Search"
-                                    prepend-inner-icon="mdi-magnify"
-                                    flat
-                                    hide-details
-                                    single-line
-                                    clearable
-                                ></v-text-field>
-                                <div class="flex items-center gap-1 ml-3 text-xs font-medium">
-                                    <span class="text-gray-800">{{ pageStart }}-{{ pageEnd }} of {{ totalItems }}</span>
-                                    <v-btn class="h-7 w-7" icon="mdi-chevron-double-left" variant="text" size="x-small" @click="goFirst" :disabled="currentPage === 1" />
-                                    <v-btn class="h-7 w-7" icon="mdi-chevron-left" variant="text" size="x-small" @click="goPrev" :disabled="currentPage === 1" />
-                                    <v-btn class="h-7 w-7" icon="mdi-chevron-right" variant="text" size="x-small" @click="goNext" :disabled="currentPage * clients.page.per_page >= totalItems" />
-                                    <v-btn class="h-7 w-7" icon="mdi-chevron-double-right" variant="text" size="x-small" @click="goLast" :disabled="currentPage * clients.page.per_page >= totalItems" />
-                                </div>
-                                <v-btn
-                                    class="new-btn"
-                                    v-bind="props"
-                                    rounded="lg"
-                                    variant="flat"
-                                    :style="{ background:'#111', color:'#fff', fontWeight:600 }"
+    <div>
+        <!-- Main Content: Header + List on Left, Detail Panel on Right -->
+        <div class="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6 items-stretch">
+            <!-- Left Section (60%): Header + List -->
+            <div class="flex flex-col gap-4">
+                <!-- Header Section -->
+                <SharedDataTableHeader
+                    :search="search"
+                    :search-placeholder="`Search ${status === 'eksternal' ? 'end users' : 'clients'}...`"
+                    :current-page="currentPage"
+                    :items-per-page="clients.page.per_page"
+                    :total-items="totalItems"
+                    :page-start="pageStart"
+                    :page-end="pageEnd"
+                    :action-label="`New ${status === 'eksternal' ? 'End User' : 'Client'}`"
+                    :show-export="true"
+                    @update:search="search = $event"
+                    @go-first="goFirst"
+                    @go-prev="goPrev"
+                    @go-next="goNext"
+                    @go-last="goLast"
+                    @action-click="openNewDialog"
+                    @export="exportData"
+                />
+
+                <!-- Client List -->
+                <SharedDataTableList
+                    :items="clients.results"
+                    :loading="loading"
+                    :title="`${status === 'eksternal' ? 'End User' : 'Client'} List`"
+                    :total-items="totalItems"
+                    :loading-text="`Loading ${status === 'eksternal' ? 'end users' : 'clients'}...`"
+                    :empty-icon="'mdi-account-multiple-outline'"
+                    :empty-title="`No ${status === 'eksternal' ? 'end users' : 'clients'} found`"
+                    :empty-message="'Try adjusting your search'"
+                    :show-sort="true"
+                    :current-sort="currentSortValue"
+                    @refresh="initialize"
+                    @sort="handleSort"
+                >
+                    <template #items>
+                        <SharedDataTableListItem
+                            v-for="client in clients.results"
+                            :key="client.id"
+                            :title="client.name"
+                            :subtitle="client.email"
+                            :is-selected="infoShow && editedItem.id === client.id"
+                            :avatar-src="client.logo"
+                            :avatar-fallback="client.name?.charAt(0)?.toUpperCase()"
+                            :show-checkbox="false"
+                            :actions="[
+                                { id: 'view', icon: 'mdi-eye-outline' },
+                                { id: 'edit', icon: 'mdi-square-edit-outline' },
+                                { id: 'delete', icon: 'mdi-trash-can-outline' }
+                            ]"
+                            @select="infoItem(client)"
+                            @action="(actionId) => {
+                                if (actionId === 'view') infoItem(client);
+                                else if (actionId === 'edit') editItem(client);
+                                else if (actionId === 'delete') deleteItem(client);
+                            }"
+                        >
+                            <template #extra-button>
+                                <a 
+                                    v-if="client.web" 
+                                    :href="client.web" 
+                                    target="_blank"
+                                    class="visit-badge"
+                                    @click.stop
                                 >
-                                    New {{ status == "eksternal" ? 'End User' : 'Client' }}
-                                </v-btn>
+                                    <v-icon size="12">mdi-open-in-new</v-icon>
+                                    Visit
+                                </a>
                             </template>
-                            <v-card>
-                                <v-card-text class="w-full">
-                                    <form
-                                        @submit.prevent="save"
-                                        v-if="!infoShow"
-                                        enctype="multipart/form-data"
-                                    >
-                                        <DashboardsClientForm
-                                            :editedItem="editedItem"
-                                            @update:editedItem="updateEditedItem"
-                                        />
-                                        <div class="flex justify-between">
-                                            <span class="text-h5">{{
-                                                infoShow ? 'Info User' : formTitle
-                                            }}</span>
-                                            <v-card-actions>
-                                                <v-spacer></v-spacer>
-                                                <v-btn
-                                                    color="black"
-                                                    variant="outlined"
-                                                    rounded="lg"
-                                                    @click="close"
-                                                >
-                                                    Cancel
-                                                </v-btn>
-                                                <v-btn
-                                                    :style="{ background:'#111', color:'#fff'}"
-                                                    variant="outlined"
-                                                    rounded="lg"
-                                                    type="submit"
-                                                >
-                                                    Save
-                                                </v-btn>
-                                            </v-card-actions>
+                        </SharedDataTableListItem>
+                    </template>
+                </SharedDataTableList>
+            </div>
+
+            <!-- Right Section (40%): Detail Panel -->
+            <div class="flex flex-col h-full">
+                <SharedDataTableDetailPanel>
+                    <template #user-card>
+                        <SharedUserCard :user="userStore.user" />
+                    </template>
+                    
+                    <template #content>
+                        <div v-if="infoShow && editedItem.id">
+                            <SharedDataTableDetailView
+                                :show-logo="true"
+                                :logo-src="editedItem.logo"
+                                :logo-alt="editedItem.name"
+                                :fields="[
+                                    { key: 'name', label: 'Full Name', value: editedItem.name },
+                                    { key: 'phone', label: 'Phone Number', value: editedItem.phone },
+                                    { key: 'email', label: 'Email Address', value: editedItem.email },
+                                    { key: 'web', label: 'Website URL', value: editedItem.web, type: 'link' },
+                                    { key: 'address', label: 'Address', value: editedItem.address, multiline: true }
+                                ]"
+                            >
+                                <template #title>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex-1">
+                                            <h3 class="client-name">{{ editedItem.name }}</h3>
+                                            <p class="client-email">{{ editedItem.email }}</p>
                                         </div>
-                                    </form>
-                                    <div v-else>
-                                        <DashboardsClientDetail :item="editedItem" />
-                                        <v-card-actions>
-                                            <v-spacer></v-spacer>
-                                            <v-btn
-                                                color="black"
-                                                variant="outlined"
-                                                @click="close"
-                                            >
-                                                Close
-                                            </v-btn>
-                                        </v-card-actions>
+                                        <a 
+                                            v-if="editedItem.web" 
+                                            :href="editedItem.web" 
+                                            target="_blank"
+                                            class="visit-badge"
+                                        >
+                                            <v-icon size="12">mdi-open-in-new</v-icon>
+                                            Visit
+                                        </a>
                                     </div>
-                                </v-card-text>
-                            </v-card>
-                        </v-dialog>
-                        <DashboardsFormsDeleteConfirm
-                            :showModal="dialogDelete"
-                            @update:showModal="dialogDelete = $event"
-                            :closeAction="closeDelete"
-                            :deleteAction="deleteItemConfirm"
-                        />
-                    </v-toolbar>
-                </template>
-                <template v-slot:item.actions="{ item }">
-                    <div class="flex flex-col items-center gap-2 w-full">
-                        <div class="row-actions flex items-center gap-2">
-                            <v-btn icon="mdi-eye" variant="text" size="small" @click="infoItem(item)"></v-btn>
-                            <v-btn icon="mdi-pencil" variant="text" size="small" @click="editItem(item)"></v-btn>
-                            <v-btn icon="mdi-delete" color="error" variant="text" size="small" @click="deleteItem(item)"></v-btn>
+                                </template>
+                            </SharedDataTableDetailView>                                                       
                         </div>
-                        <v-btn
-                            class="visit-btn"
-                            size="x-small"
-                            variant="outlined"
-                            rounded="lg"
-                            @click="infoItem(item)"
-                        >Visit</v-btn>
-                    </div>
-                </template>
-                <template v-slot:no-data>
-                    <div class="flex flex-col gap-5 items-center p-5">
-                        <h1>No data found!</h1>
-                        <v-btn color="primary" @click="initialize">Refresh</v-btn>
-                    </div>
-                </template>
-            </v-data-table-server>
-        </v-col>
-        <v-col cols="12" md="4" class="flex flex-col gap-4">
-            <v-card class="px-5 py-5" rounded="xl" elevation="1" :style="{ backgroundColor: '#FF5F00', color: 'white' }">
-                <div class="flex items-center gap-4">
-                    <v-avatar size="56">
-                        <v-img :src="userStore.user?.photo || '/images/profile/user.png'" :alt="userStore.user?.full_name"></v-img>
-                    </v-avatar>
-                    <div class="flex flex-col mb-4">
-                        <b class="font-semibold text-sm leading-4 mb-4">{{ userStore.user?.full_name || '...' }}</b>
-                        <span class="text-xs">{{ userStore.user?.role || '' }}</span>
-                    </div>
-                    <v-btn icon="mdi-chevron-right" variant="text" size="small" class="text-white" @click="infoShow = false"></v-btn>
-                </div>
-                <div class="mt-3 text-xs opacity-95 truncate">Dasa Apprilindo Sentosa</div>
+                        
+                        <SharedDataTableEmptyState
+                            v-else
+                            icon="mdi-account-outline"
+                            :title="`No ${status === 'eksternal' ? 'end user' : 'client'} selected`"
+                            message="Select an item from the list to view details"
+                        />
+                    </template>
+                </SharedDataTableDetailPanel>
+            </div>
+        </div>
+
+        <!-- Dialog: Add/Edit Form -->
+        <v-dialog v-model="dialog" max-width="1000px" persistent>
+            <v-card class="rounded-xl">
+                <v-card-title class="px-6 py-4 border-b border-gray-200">
+                    <span class="text-lg font-semibold">{{ formTitle }}</span>
+                </v-card-title>
+                
+                <v-card-text class="px-6 py-6">
+                    <form @submit.prevent="save" enctype="multipart/form-data">
+                        <DashboardsClientForm
+                            :editedItem="editedItem"
+                            @update:editedItem="updateEditedItem"
+                        />
+                    </form>
+                </v-card-text>
+
+                <v-card-actions class="px-6 py-4 border-t border-gray-200">
+                    <v-spacer />
+                    <v-btn
+                        variant="outlined"
+                        color="grey-darken-1"
+                        @click="close"
+                    >
+                        Cancel
+                    </v-btn>
+                    <v-btn
+                        variant="flat"
+                        color="grey-darken-1"
+                        :style="{ background:'#1e1e1e', color:'#fff'}"
+                        @click="save"
+                    >
+                        Save
+                    </v-btn>
+                </v-card-actions>
             </v-card>
-            
-            <v-card v-if="infoShow" class="details-card p-5 mt-5" rounded="xl" elevation="1">
-                <!-- Details card -->
-                <DashboardsClientDetail :item="editedItem" />
-            </v-card>
-            <v-card v-else class="details-card p-5 mt-5" rounded="xl" elevation="1">
-                <div class="text-center align-middle mt-16">
-                    <v-icon size="40" class="text-gray-500">mdi-account-outline</v-icon>
-                    <div class="mt-2 font-medium">No {{ status == 'eksternal' ? 'End User' : 'Client' }} selected</div>
-                    <div class="text-sm v">Select a {{ status == 'eksternal' ? 'end user' : 'client' }} to read</div>
-                </div>
-            </v-card>
-        </v-col>
-    </v-row>
+        </v-dialog>
+
+        <!-- Delete Confirmation Dialog -->
+        <DashboardsFormsDeleteConfirm
+            :showModal="dialogDelete"
+            @update:showModal="dialogDelete = $event"
+            :closeAction="closeDelete"
+            :deleteAction="deleteItemConfirm"
+        />
+    </div>
 </template>
 
 <style scoped>
-.row-actions {
-    opacity: 0;
-    transform: translateY(-2px);
-    transition: opacity .15s ease, transform .15s ease;
-}
-:deep(tbody tr:hover .row-actions),
-:deep(tbody tr:focus-within .row-actions) {
-    opacity: 1;
-    transform: translateY(0);
-}
-.row-actions :deep(.v-btn) {
-    border-radius: 8px;
-    transition: background-color .15s ease, color .15s ease;
-}
-.row-actions :deep(.v-btn:hover) {
-    background-color: #f3f4f6; /* gray-100 */
-}
-.visit-btn {
+.visit-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
     font-size: 11px;
-    line-height: 16px;
-    padding: 0 10px;
-    border-color: #c9cccf !important;
-    color: #444 !important;
-    background: #fff !important;
-    text-transform: none;
     font-weight: 500;
-    transition: background-color .15s ease;
+    color: #374151;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 18px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    white-space: nowrap;
 }
-.visit-btn:hover {
-    background: #f3f4f6 !important;
+
+.visit-badge:hover {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+    color: #1e1e1e;
 }
-.details-card {
-    background: #fff;
-    border: 1px solid #eef0f2;
-    border-radius: 16px;
-    min-height: 260px;
+
+.client-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #000;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.client-email {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Remove Vuetify default shadows globally for this page */
+:deep(.v-card) {
+    box-shadow: none !important;
 }
 </style>

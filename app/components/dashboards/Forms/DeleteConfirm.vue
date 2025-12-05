@@ -1,44 +1,44 @@
 <template>
     <v-dialog
         :model-value="showModal"
-        @update:model-value="updateModalValue"
-        max-width="800px"
+        @update:model-value="emit('update:showModal', $event)"
+        max-width="600"
+        persistent
     >
-        <v-card class="py-5 px-3">
-            <v-toolbar :style="{background: '#fff'}">
-                <v-toolbar-title class="font-weight-bold text-red-600">
-                    Are you sure?
-                </v-toolbar-title>
-            </v-toolbar>
-            <v-card-text class="font-thin">
-                This action <strong>CANNOT</strong> be undone. Please be
-                absolutely certain you want to proceed before confirming.
+        <v-card class="rounded-xl border border-gray-200" elevation="0">
+            <v-card-text class="pa-6">
+                <h3 class="text-h6 font-weight-bold text-error mb-3">Are you sure?</h3>
+                <p class="text-body-2 text-grey-darken-1 mb-0">
+                    This action <strong>CANNOT</strong> be undone. Please be
+                    absolutely certain you want to proceed before confirming.
+                </p>
             </v-card-text>
+            
             <v-divider></v-divider>
-            <v-card-actions class="py-3">
-                <v-spacer></v-spacer>
+            
+            <v-card-actions class="pa-4 d-flex ga-3 justify-end">
                 <v-btn
-                    color="grey"
-                    text
-                    class="body-2 font-weight-bold"
-                    @click="closeAction"
-                    >Cancel</v-btn
-                >
-                <v-btn
-                    color="error"
-                    class="body-2 font-weight-bold"
                     variant="outlined"
-                    rounded="lg"
-                    @click="deleteAction"
-                    >Confirm</v-btn
+                    color="grey-darken-1"
+                    class="text-none px-6 rounded-lg"
+                    @click="closeAction"
                 >
+                    Cancel
+                </v-btn>
+                <v-btn
+                    variant="flat"
+                    color="error"
+                    class="text-none px-6 rounded-lg"
+                    @click="deleteAction"
+                >
+                    Confirm Delete
+                </v-btn>
             </v-card-actions>
         </v-card>
     </v-dialog>
 </template>
 
 <script setup>
-
 const props = defineProps({
     showModal: Boolean,
     closeAction: Function,
@@ -46,8 +46,4 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:showModal']);
-
-const updateModalValue = value => {
-    emit('update:showModal', value);
-};
 </script>

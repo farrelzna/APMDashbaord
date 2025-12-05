@@ -429,14 +429,13 @@ onBeforeUnmount(() => {
                     
                     <div class="project-list-scroll" ref="scrollProjects" :style="{ 
                         overflowY: 'auto', 
-                        maxHeight: 'calc(100vh - 174px)' 
+                        maxHeight: 'calc(100vh - 64px)' 
                     }">
                         <div
                             v-for="project in sortedProjects"
                             :key="project.id"
-                            v-auto-animate
                             style="border-bottom: 1px solid #f5f5f5;"
-                            class=" p-3 md:p-4 cursor-pointer"
+                            class="p-3 md:p-4 cursor-pointer transition-all duration-200 hover:bg-gray-50"
                             @click="openProject(project.id)"
                         >
                         <UiProjectCard
@@ -539,7 +538,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Loading Skeleton -->
-    <dashboards-dashboard-skeleton v-else />
+    <DashboardsContentDashboardSkeleton v-else />
 
     <!-- Project Detail Dialog Component -->
     <dashboards-project-detail-dialog
