@@ -1,9 +1,13 @@
 <template>
-    <v-dialog
+    <v-overlay
         :model-value="showModal"
         @update:model-value="emit('update:showModal', $event)"
-        max-width="600"
+        class="d-flex justify-end align-end"
+        width="83%"
+        max-width="83%"
         persistent
+        transition="dialog-bottom-transition"
+        scrim="rgba(0,0,0,0.4)"
     >
         <v-card class="rounded-xl border border-gray-200" elevation="0">
             <v-card-text class="pa-6">
@@ -17,6 +21,8 @@
             <v-divider></v-divider>
             
             <v-card-actions class="pa-4 d-flex ga-3 justify-end">
+                <div class="text-sm font-medium text-gray-800">Delete {{ title }}</div>
+                <v-spacer/>
                 <v-btn
                     variant="outlined"
                     color="grey-darken-1"
@@ -35,7 +41,7 @@
                 </v-btn>
             </v-card-actions>
         </v-card>
-    </v-dialog>
+    </v-overlay>
 </template>
 
 <script setup>
@@ -43,6 +49,7 @@ const props = defineProps({
     showModal: Boolean,
     closeAction: Function,
     deleteAction: Function,
+    title: { type: String, default: 'Item' },
 });
 
 const emit = defineEmits(['update:showModal']);

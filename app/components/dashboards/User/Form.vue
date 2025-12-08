@@ -3,12 +3,6 @@
     <v-row  class="items-start">
       <!-- Left: Photo Upload Column -->
       <v-col cols="12" md="4" class="d-flex flex-column align-center gap-4">
-        <div class="text-center mb-6">
-          <p class="text-gray-600">
-            {{ editableItem.id
-              ? 'Update user information and settings' : 'Fill in the details to create a new user account' }}
-          </p>
-        </div>
         <label for="photo-upload" class="relative group cursor-pointer">
           <div class="w-40 h-40 rounded-full overflow-hidden border-4 border-gray-100 shadow-medium group-hover:shadow-strong transition-all duration-300">
             <img v-if="photoPreview || editableItem.photo" :src="photoPreview || editableItem.photo"
@@ -280,21 +274,24 @@ const validateAndCheck = () => {
 
 defineExpose({ validateAndCheck });
 
-watch(() => props.modelValue, (newVal) => {
+// Only reset local form when the underlying record changes (by id)
+watch(() => props.modelValue?.id, (newId, oldId) => {
   const baseUser: UserItem = {
     first_name: '',
     last_name: '',
     username: '',
     email: '',
     role: '',
-    status: '', // Added status initialization
+    status: '',
     photo: undefined,
     photoFile: null,
   };
-  editableItem.value = { ...baseUser, ...newVal, photoFile: null }; // Ensure photoFile is reset
-  photoPreview.value = null; // Reset photo preview when modelValue changes
-  errors.value = {}; // Reset errors
-}, { deep: true, immediate: true });
+  // Initialize or when switching to a different user
+  const newVal = props.modelValue;
+  editableItem.value = { ...baseUser, ...(newVal || {}), photoFile: null };
+  photoPreview.value = null;
+  errors.value = {};
+}, { immediate: true });
 
 
 watch(editableItem, (newVal) => {

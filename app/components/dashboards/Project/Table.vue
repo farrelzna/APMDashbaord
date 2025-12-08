@@ -459,6 +459,7 @@ provide('refreshData', initialize);
         @update:showModal="dialogDelete = $event"
         :closeAction="closeDelete"
         :deleteAction="deleteItemConfirm"
+        title="Project"
     />
 </template>
 

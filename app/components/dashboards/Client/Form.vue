@@ -28,26 +28,21 @@
             <!-- Right: Two-column fields -->
             <v-col cols="12" md="8">
                 <v-row>
-                    <v-col cols="12" md="6">
+                    <v-col cols="12" md="6" class="space-y-2">
                         <v-text-field v-model="editedItem.name" label="Full Name *" :rules="[rules.required]" required variant="underlined" />
-                    </v-col>
-                    <v-col cols="12" md="6">
-                        <v-text-field v-model="editedItem.web" label="Website URL *" :rules="[rules.url]"
-                                      pattern="[Hh][Tt][Tt][Pp][Ss]?:\/\/(?:(?:[a-zA-Z\u00a1-\uffff0-9]+-?)*[a-zA-Z\u00a1-\uffff0-9]+)(?:\.(?:[a-zA-Z\u00a1-\uffff0-9]+-?)*[a-zA-Z\u00a1-\uffff0-9]+)*(?:\.(?:[a-zA-Z\u00a1-\uffff]{2,}))(?::\d{2,5})?(?:\/[^\s]*)?"
-                                      required variant="underlined" />
-                    </v-col>
-                    <v-col cols="12" md="6">
                         <v-text-field v-model="editedItem.phone" label="Phone Number *" type="tel"
                                       :rules="[rules.required, rules.phone, v => /^\d{0,16}$/.test(v || '') || 'Only numbers allowed, max 16 digits.']"
                                       required maxlength="16" pattern="^\d{1,16}$"
                                       @input="editedItem.phone = (editedItem.phone || '').replace(/\D/g, '').slice(0, 16)" variant="underlined" />
-                    </v-col>
-                    <v-col cols="12" md="6">
                         <v-text-field v-model="editedItem.email" label="Email Address *" type="email"
                                       :rules="[rules.required, rules.email]" required variant="underlined" />
                     </v-col>
-                    <v-col cols="12" md="12">
-                        <v-textarea v-model="editedItem.address" label="Address *" :rules="[rules.required]" required variant="underlined" />
+                    <v-col cols="12" md="6" class="space-y-2">
+                        <v-text-field v-model="editedItem.web" label="Website URL *" :rules="[rules.url]"
+                                      pattern="[Hh][Tt][Tt][Pp][Ss]?:\/\/(?:(?:[a-zA-Z\u00a1-\uffff0-9]+-?)*[a-zA-Z\u00a1-\uffff0-9]+)(?:\.(?:[a-zA-Z\u00a1-\uffff0-9]+-?)*[a-zA-Z\u00a1-\uffff0-9]+)*(?:\.(?:[a-zA-Z\u00a1-\uffff]{2,}))(?::\d{2,5})?(?:\/[^^\s]*)?"
+                                      required variant="underlined" />
+                        <v-textarea v-model="editedItem.address" label="Address *" :rules="[rules.required]" required
+                                    variant="outlined" rows="5" class="rounded-lg" />
                     </v-col>
                 </v-row>
             </v-col>
