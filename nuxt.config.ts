@@ -19,11 +19,6 @@ export default defineNuxtConfig({
       title: "Dasa Aprilindo Sentosa",
     },
   },
-
-  modules: [
-    '@nuxtjs/tailwindcss',
-    '@pinia/nuxt'
-  ],
     
   build: {
     transpile: ["vuetify"],
@@ -31,6 +26,26 @@ export default defineNuxtConfig({
 
   nitro: {
     serveStatic: true,
+  },
+
+  sourcemap: { server: false, client: false },
+  devServerHandlers: [],
+
+  modules: [
+    "@nuxtjs/tailwindcss",
+    "@formkit/auto-animate/nuxt",
+    "nuxt-permissions",
+    [
+      "@pinia/nuxt",
+      {
+        autoImports: ["defineStore", "acceptHMRUpdate"],
+      },
+    ],
+  ],
+
+  tailwindcss: {
+    exposeConfig: true,
+    viewer: true,
   },
 
   runtimeConfig: {
@@ -45,6 +60,16 @@ export default defineNuxtConfig({
       keycloakUrl: process.env.KEYCLOAK_URL || 'http://192.168.18.249:8080'
     }
   },
+
+  pinia: {
+    storesDirs: ['./stores/**'],
+  },
+
+  plugins: [
+    '~/plugins/toast.ts',
+    '~/plugins/dateFormat.ts',
+    '~/plugins/keycloak.ts'
+  ],
 
   vite: {
     vue: {

@@ -51,8 +51,8 @@
                 :key="action.id"
                 :icon="action.icon"
                 variant="text"
-                size="small"
-                :color="action.color"
+                size="x-small"
+                :color="getActionColor(action.id)"
                 @click.stop="$emit('action', action.id)"
                 class="item-action-btn"
             />
@@ -116,6 +116,15 @@ const props = defineProps({
         default: '#FF5F00',
     },
 });
+
+const getActionColor = (actionId) => {
+    switch(actionId) {
+        case 'view': return '#1e40af'; // Blue-800
+        case 'edit': return '#b45309'; // Amber-700
+        case 'delete': return '#dc2626'; // Red-600
+        default: return '#6b7280'; // Gray-500
+    }
+};
 
 defineEmits(['select', 'update:checked', 'action']);
 </script>

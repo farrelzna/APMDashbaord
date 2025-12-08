@@ -200,11 +200,6 @@ body {
 .item-action-btn .v-icon {
     color: #1e1e1e !important;
 }
-
-.item-action-btn:hover {
-    background-color: transparent !important;
-}
-
 /* Keep delete button red */
 .item-action-btn.text-error .v-icon {
     color: #ef4444 !important;

@@ -1,10 +1,12 @@
 <script setup>
+import { colorByStatus } from '@/utils/colorByStatus';
+
 const dialog = ref(false);
 const dialogDelete = ref(false);
 const projectStore = useProjectStore();
 const infoShow = ref(false);
 const loading = ref(true);
-const search = ref(null);
+const search = ref('');
 const tableOptions = reactive({ page: 1, itemsPerPage: 10 });
 const totalProjects = computed(() => projects.page.count_result || 0);
 const pageStart = computed(() => {
@@ -12,17 +14,119 @@ const pageStart = computed(() => {
     return (tableOptions.page - 1) * tableOptions.itemsPerPage + 1;
 });
 const pageEnd = computed(() => Math.min(tableOptions.page * tableOptions.itemsPerPage, totalProjects.value));
-import { colorByStatus } from '@/utils/colorByStatus';
 
-const headers = [
-    { title: 'PID', key: 'pid', sortable: false },
-    { title: 'Project Name', key: 'name', sortable: false },
-    { title: 'User', key: 'customer_str.name', sortable: false },
-    { title: 'End-User', key: 'end_user_str.name', sortable: false },
-    { title: 'PM', key: 'pm_str.full_name', sortable: false },
-    { title: 'Progress', key: 'progress', sortable: false },
-    { title: 'Actions', key: 'actions', sortable: false },
-];
+function goFirst() { 
+    if (tableOptions.page > 1) tableOptions.page = 1;
+}
+
+function goPrev() { 
+    if (tableOptions.page > 1) tableOptions.page--;
+}
+
+function goNext() {
+    const maxPage = Math.ceil(totalProjects.value / tableOptions.itemsPerPage);
+    if (tableOptions.page < maxPage) tableOptions.page++;
+}
+
+function goLast() {
+    const maxPage = Math.ceil(totalProjects.value / tableOptions.itemsPerPage);
+    if (tableOptions.page < maxPage) tableOptions.page = maxPage;
+}
+
+// Tab filter state 
+const activeTab = ref('all');
+
+// Sort functionality
+const currentSortValue = ref('date-desc'); // Default: newest first
+
+const handleSort = (sortValue) => {
+    currentSortValue.value = sortValue;
+    const sorted = [...projects.results];
+    
+    switch (sortValue) {
+        case 'name-asc':
+            sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            break;
+        case 'name-desc':
+            sorted.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+            break;
+        case 'date-desc':
+            sorted.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            break;
+        case 'date-asc':
+            sorted.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+            break;
+        case 'status-asc':
+            sorted.sort((a, b) => (a.status || '').localeCompare(b.status || ''));
+            break;
+        case 'status-desc':
+            sorted.sort((a, b) => (b.status || '').localeCompare(a.status || ''));
+            break;
+    }
+    
+    projects.results = sorted;
+};
+
+// Filter displayed results based on tab (client-side filter only)
+const filteredProjects = computed(() => {
+    if (activeTab.value === 'all') return projects.results;
+    return projects.results.filter(project => {
+        const status = project.status?.toLowerCase() || '';
+        switch(activeTab.value) {
+            case 'in-progress': return status === 'in progress';
+            case 'pm-cm': return status === 'pm / cm' || status === 'pm' || status === 'cm';
+            case 'on-hold': return status === 'on hold';
+            case 'waiting-payment': return status === 'waiting payment';
+            case 'almost-due': return status === 'almost due';
+            case 'not-started': return status === 'not started yet';
+            case 'maintenance': return status === 'maintenance';
+            case 'opti': return status === 'opti';
+            default: return true;
+        }
+    });
+});
+
+// Count projects per tab for badges
+const tabCounts = computed(() => {
+    const counts = {
+        all: projects.results.length,
+        'in-progress': 0,
+        'pm-cm': 0,
+        'on-hold': 0,
+        'waiting-payment': 0,
+        'almost-due': 0,
+        'not-started': 0,
+        'maintenance': 0,
+        'opti': 0,
+    };
+    
+    projects.results.forEach(project => {
+        const status = project.status?.toLowerCase() || '';
+        if (status === 'in progress') counts['in-progress']++;
+        if (status === 'pm / cm' || status === 'pm' || status === 'cm') counts['pm-cm']++;
+        if (status === 'on hold') counts['on-hold']++;
+        if (status === 'waiting payment') counts['waiting-payment']++;
+        if (status === 'almost due') counts['almost-due']++;
+        if (status === 'not started yet') counts['not-started']++;
+        if (status === 'maintenance') counts['maintenance']++;
+        if (status === 'opti') counts['opti']++;
+    });
+    
+    return counts;
+});
+
+// Tab configuration
+const tabs = computed(() => [
+    { label: 'All', value: 'all', count: tabCounts.value.all },
+    { label: 'In Progress', value: 'in-progress', count: tabCounts.value['in-progress'] },
+    { label: 'PM / CM', value: 'pm-cm', count: tabCounts.value['pm-cm'] },
+    { label: 'On Hold', value: 'on-hold', count: tabCounts.value['on-hold'] },
+    { label: 'Waiting Payment', value: 'waiting-payment', count: tabCounts.value['waiting-payment'] },
+    { label: 'Almost Due', value: 'almost-due', count: tabCounts.value['almost-due'] },
+    { label: 'Not Started Yet', value: 'not-started', count: tabCounts.value['not-started'] },
+    { label: 'Maintenance', value: 'maintenance', count: tabCounts.value['maintenance'] },
+    { label: 'Opti', value: 'opti', count: tabCounts.value['opti'] },
+]);
 
 const projects = reactive({
     page: { per_page: 10, count_result: 0 },
@@ -103,6 +207,12 @@ watch(dialogDelete, val => {
     if (!val) closeDelete();
 });
 
+// Watch search changes - reload data when user searches
+watch(search, async () => {
+    tableOptions.page = 1; // Reset to first page
+    await loadItems({ page: 1, itemsPerPage: tableOptions.itemsPerPage });
+});
+
 const loadItems = async ({ page, itemsPerPage }) => {
     loading.value = true;
     const projectsData = await projectStore.fetchAll(page, search.value || '');
@@ -173,6 +283,47 @@ const closeDelete = () => {
     editedIndex.value = -1;
 };
 
+// Export functionality
+const exportData = (format) => {
+    const data = projects.results.map(project => ({
+        'PID': project.pid || '',
+        'Project Name': project.name || '',
+        'Client': project.customer_str?.name || '',
+        'End User': project.end_user_str?.name || '',
+        'PM': project.pm_str?.full_name || '',
+        'Status': project.status || '',
+        'Progress': project.progress ? `${project.progress.task_complete}/${project.progress.task_total}` : '',
+    }));
+
+    if (format === 'csv') {
+        // CSV Export
+        const headers = Object.keys(data[0]);
+        const csvContent = [
+            headers.join(','),
+            ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `projects-${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    } else if (format === 'excel') {
+        // Excel Export (TSV with .xls extension)
+        const headers = Object.keys(data[0]);
+        const csvContent = [
+            headers.join('\t'),
+            ...data.map(row => headers.map(header => row[header] || '').join('\t'))
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `projects-${new Date().toISOString().split('T')[0]}.xls`;
+        link.click();
+    }
+};
+
 onMounted(() => {
     initialize();
 });
@@ -181,125 +332,136 @@ provide('refreshData', initialize);
 </script>
 
 <template>
-    <v-data-table-server
-        v-model:page="tableOptions.page"
-        v-model:items-per-page="tableOptions.itemsPerPage"
-        :headers="headers"
-        :items="projects.results"
-        :loading="loading"
-        :items-length="projects.page.count_result"
-        :search="search"
-        show-select
-        :items-per-page-options="[{ value: 10, title: '10' }, { value: 25, title: '25' }, { value: 50, title: '50' }]"
-        :hide-default-footer="true"
-        @update:options="loadItems"
-        class="border p-5 rounded-xl"
-    >
-        <template v-slot:item.progress="{ item }">
-            <v-progress-linear
-                v-if="item.progress"
-                :model-value="item.progress.task_complete"
-                :max="item.progress.task_total"
-            ></v-progress-linear>
-        </template>
+    <div class="flex flex-col gap-4">
+        <!-- Header Section with Search and Actions -->
+        <SharedDataTableHeader
+            :search="search"
+            search-placeholder="Search projects..."
+            :current-page="tableOptions.page"
+            :items-per-page="tableOptions.itemsPerPage"
+            :total-items="totalProjects"
+            :page-start="pageStart"
+            :page-end="pageEnd"
+            action-label="New Project"
+            action-icon="mdi-plus"
+            :show-export="true"
+            @update:search="search = $event"
+            @go-first="goFirst"
+            @go-prev="goPrev"
+            @go-next="goNext"
+            @go-last="goLast"
+            @action-click="navigateTo('/dashboard/project/create')"
+            @export="exportData"
+        />
 
-        
-        <template v-slot:top>
-            <v-toolbar flat color="containerBg">
-                <v-toolbar-title>Projects Table</v-toolbar-title>
-                <v-text-field
-                    v-model="search"
-                    density="compact"
-                    label="Search"
-                    prepend-inner-icon="mdi-magnify"
-                    flat
-                    hide-details
-                    single-line
-                ></v-text-field>
-                <div class="flex items-center gap-1 ml-3 text-xs font-medium">
-                    <span class="text-gray-800">{{ pageStart }}-{{ pageEnd }} of {{ totalProjects }}</span>
-                    <v-btn class="h-7 w-7" icon="mdi-chevron-double-left" variant="text" size="x-small" @click="tableOptions.page = 1" :disabled="tableOptions.page === 1" />
-                    <v-btn class="h-7 w-7" icon="mdi-chevron-left" variant="text" size="x-small" @click="tableOptions.page > 1 && tableOptions.page--" :disabled="tableOptions.page === 1" />
-                    <v-btn class="h-7 w-7" icon="mdi-chevron-right" variant="text" size="x-small" @click="tableOptions.page * tableOptions.itemsPerPage < totalProjects && tableOptions.page++" :disabled="tableOptions.page * tableOptions.itemsPerPage >= totalProjects" />
-                    <v-btn class="h-7 w-7" icon="mdi-chevron-double-right" variant="text" size="x-small" @click="tableOptions.page = Math.ceil(totalProjects / tableOptions.itemsPerPage)" :disabled="tableOptions.page * tableOptions.itemsPerPage >= totalProjects" />
-                </div>
+        <!-- Tab Bar Filter -->
+        <div v-if="tabs.length > 0">
+            <SharedDataTableTabBar v-model="activeTab" :tabs="tabs" />
+        </div>
 
-                <v-btn
-                    class="mx-5"
-                    :style="{ background:'#111', color:'#fff', fontWeight:600 }"
-                    variant="flat"
-                    dark
-                    v-can="pagePermission.project.add"
-                    @click="navigateTo('/dashboard/project/create')"
+        <!-- Project List using SharedDataTableList -->
+        <SharedDataTableList
+            :items="filteredProjects"
+            :loading="loading"
+            title="Project List"
+            :total-items="totalProjects"
+            loading-text="Loading projects..."
+            empty-icon="mdi-file-document-multiple-outline"
+            empty-title="No projects found"
+            empty-message="Try adjusting your search or filter"
+            :show-sort="true"
+            :current-sort="currentSortValue"
+            @refresh="initialize"
+            @sort="handleSort"
+        >
+            <template #items>
+                <SharedDataTableListItem
+                    v-for="project in filteredProjects"
+                    :key="project.id"
+                    :title="`${project.name}${project.pid ? ` (${project.pid})` : ''}`"
+                    :subtitle="`Client: ${project.customer_str?.name || 'N/A'} • End User: ${project.end_user_str?.name || 'N/A'}`"
+                    :is-selected="false"
+                    :avatar-src="null"
+                    :avatar-fallback="project.name?.charAt(0)?.toUpperCase() || '?'"
+                    :show-checkbox="false"
+                    :show-avatar="false"
+                    :actions="[
+                        { id: 'view', icon: 'mdi-eye-outline' },
+                        { id: 'edit', icon: 'mdi-square-edit-outline' },
+                        { id: 'delete', icon: 'mdi-trash-can-outline' }
+                    ]"
+                    @select="navigateTo(`/dashboard/project/${project.id}`)"
+                    @action="(actionId) => {
+                        if (actionId === 'view') navigateTo(`/dashboard/project/${project.id}`);
+                        else if (actionId === 'edit') navigateTo(`/dashboard/project/update/${project.id}`);
+                        else if (actionId === 'delete') deleteItem(project);
+                    }"
                 >
-                    New Project
-                </v-btn>
-                <DashboardsFormsDeleteConfirm
-                    :showModal="dialogDelete"
-                    @update:showModal="dialogDelete = $event"
-                    :closeAction="closeDelete"
-                    :deleteAction="deleteItemConfirm"
-                />
-            </v-toolbar>
-        </template>
-        <template v-slot:item.name="{ item }">
-            <p class="w-56">{{ item.name }}</p>
-        </template>
-        <template v-slot:item.number="{ index }">
-            {{ (tableOptions.page - 1) * tableOptions.itemsPerPage + index + 1 }}
-        </template>
-        <template v-slot:item.actions="{ item }">
-            <div class="flex flex-col items-start gap-2 w-full">
-                <div class="row-actions flex items-center gap-2">
-                    <nuxt-link :to="`/dashboard/project/${item.id}`" class="inline-flex items-center">
-                        <v-icon size="small">mdi-eye</v-icon>
-                    </nuxt-link>
-                    <nuxt-link :to="`/dashboard/project/update/${item.id}`" class="inline-flex items-center">
-                        <v-icon size="small">mdi-pencil</v-icon>
-                    </nuxt-link>
-                    <button class="inline-flex items-center" @click="deleteItem(item)">
-                        <v-icon size="small" color="error">mdi-delete</v-icon>
-                    </button>
-                </div>
-                <v-btn
-                    class="visit-btn"
-                    size="x-small"
-                    :color="colorByStatus(item.status)"
-                    variant="tonal"
-                    rounded="lg"
-                    @click="navigateTo(`/dashboard/project/${item.id}`)"
-                >{{ item.status }}</v-btn>
-            </div>
-        </template>
-        <template v-slot:no-data>
-            <div class="flex flex-col gap-5 items-center p-5">
-                <h1>No data found!</h1>
-                <v-btn color="primary" @click="initialize">Refresh</v-btn>
-            </div>
-        </template>
-    </v-data-table-server>
+                    <template #content>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-semibold text-sm truncate text-gray-900">{{ project.name }}</div>
+                            <div class="flex flex-col gap-1 text-xs text-gray-500 mt-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium">Client:</span>
+                                    <span>{{ project.customer_str?.name || 'N/A' }}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium">End User:</span>
+                                    <span>{{ project.end_user_str?.name || 'N/A' }}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium">PM:</span>
+                                    <span>{{ project.pm_str?.full_name || 'Unassigned' }}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 mt-2">
+                                <v-progress-linear
+                                    v-if="project.progress"
+                                    :model-value="project.progress.task_complete"
+                                    :max="project.progress.task_total"
+                                    color="primary"
+                                    height="4"
+                                    rounded
+                                    class="flex-1 max-w-[150px]"
+                                />
+                                <span v-if="project.progress" class="text-xs text-gray-500">
+                                    {{ project.progress.task_complete }}/{{ project.progress.task_total }}
+                                </span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template #extra-button>
+                        <div class="flex flex-col items-end gap-3">
+                            <span v-if="project.pid" class="text-xs font-mono bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                                {{ project.pid }}
+                            </span>
+                            <v-btn
+                                size="x-small"
+                                :color="colorByStatus(project.status)"
+                                variant="tonal"
+                                rounded="lg"
+                                @click.stop="navigateTo(`/dashboard/project/${project.id}`)"
+                                class="whitespace-nowrap"
+                            >
+                                {{ project.status }}
+                            </v-btn>
+                        </div>
+                    </template>
+                </SharedDataTableListItem>
+            </template>
+        </SharedDataTableList>
+    </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <DashboardsFormsDeleteConfirm
+        :showModal="dialogDelete"
+        @update:showModal="dialogDelete = $event"
+        :closeAction="closeDelete"
+        :deleteAction="deleteItemConfirm"
+    />
 </template>
 
 <style scoped>
-.row-actions {
-    opacity: 0;
-    transform: translateY(-2px);
-    transition: opacity .15s ease, transform .15s ease;
-}
-:deep(tbody tr:hover .row-actions),
-:deep(tbody tr:focus-within .row-actions) {
-    opacity: 1;
-    transform: translateY(0);
-}
-.visit-btn {
-    font-size: 11px;
-    line-height: 16px;
-    padding: 0 10px;
-    text-transform: none;
-    font-weight: 500;
-    transition: background-color .15s ease;
-}
-.visit-btn:hover {
-    filter: brightness(0.98);
-}
+/* Styles inherited from SharedDataTableListItem component */
 </style>
