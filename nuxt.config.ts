@@ -19,7 +19,7 @@ export default defineNuxtConfig({
       title: "Dasa Aprilindo Sentosa",
     },
   },
-    
+
   build: {
     transpile: ["vuetify"],
   },
@@ -49,30 +49,32 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE || 'http://be.talentaraya.co.id/api/v1',
-      apiMedia: process.env.API_MEDIA || 'http://be.talentaraya.co.id',
+      apiBase: process.env.API_BASE || "http://be.talentaraya.co.id/api/v1",
+      apiMedia: process.env.API_MEDIA || "http://be.talentaraya.co.id",
       realtimeDelay: (() => {
-        const raw = process.env.REALTIME_DELAY ?? '';
+        const raw = process.env.REALTIME_DELAY ?? "";
         const minutes = parseFloat(raw);
         return (minutes > 0 && !isNaN(minutes) ? minutes : 5) * 60 * 1000;
       })(),
-      keycloakUrl: process.env.KEYCLOAK_URL || 'http://192.168.18.249:8080'
-    }
+      keycloakUrl: process.env.KEYCLOAK_URL || "http://192.168.18.249:8080",
+      // Development mode - bypass permissions
+      disablePermissions: process.env.DISABLE_PERMISSIONS === "true",
+    },
   },
 
   pinia: {
-    storesDirs: ['./stores/**'],
+    storesDirs: ["./stores/**"],
   },
 
   plugins: [
-    '~/plugins/toast.ts',
-    '~/plugins/dateFormat.ts',
-    '~/plugins/keycloak.ts'
+    "~/plugins/toast.ts",
+    "~/plugins/dateFormat.ts",
+    "~/plugins/keycloak.ts",
   ],
 
   vite: {
     vue: {
-      template: { transformAssetUrls }
+      template: { transformAssetUrls },
     },
     plugins: [
       vuetify({
@@ -81,5 +83,5 @@ export default defineNuxtConfig({
     ],
   },
 
-  css: [ '@/assets/global.css' ],
-})
+  css: ["@/assets/global.css"],
+});

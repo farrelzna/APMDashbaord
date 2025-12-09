@@ -1,5 +1,10 @@
 <script setup>
-definePageMeta({ middleware: ['auth'] });
+import { pagePermission } from "@/utils/permissions";
+
+definePageMeta({
+  middleware: ["auth", "permission"],
+  permission: pagePermission.client.view,
+});
 </script>
 <template>
   <v-row>

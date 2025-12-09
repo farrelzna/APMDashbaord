@@ -119,7 +119,6 @@ const cleanupListeners = () => {
                     />
                     <!---End Single Item-->
                 </template>
-
             </v-list>
             
             <!-- User Profile Button with Dropdown Trigger -->

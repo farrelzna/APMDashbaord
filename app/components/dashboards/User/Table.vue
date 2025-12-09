@@ -1,252 +1,295 @@
 <template>
-    <div>
-        <!-- Main Content: Header + List on Left, Detail Panel on Right -->
-        <div class="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6 items-stretch">
-            <!-- Left Section: Header + List -->
-            <div class="flex flex-col gap-4">
-                <!-- Header Section -->
-                <SharedDataTableHeader
-                    v-model:search="search"
-                    search-placeholder="Search users..."
-                    :current-page="tableOptions.page"
-                    :items-per-page="tableOptions.itemsPerPage"
-                    :total-items="totalUsers"
-                    :page-start="pageStart"
-                    :page-end="pageEnd"
-                    action-label="New User"
-                    :show-export="true"
-                    @update:search="search = $event"
-                    @go-first="goFirst"
-                    @go-prev="goPrev"
-                    @go-next="goNext"
-                    @go-last="goLast"
-                    @action-click="openNewUserDialog"
-                    @export="exportData"
-                />
-
-                <!-- User List -->
-                <SharedDataTableList
-                    :items="users"
-                    :loading="loading"
-                    title="User List"
-                    :total-items="totalUsers"
-                    loading-text="Loading users..."
-                    empty-icon="mdi-account-multiple-outline"
-                    empty-title="No users found"
-                    empty-message="Try adjusting your search"
-                    :show-sort="true"
-                    :current-sort="currentSortValue"
-                    @refresh="refreshTable"
-                    @sort="handleSort"
-                >
-                    <template #items>
-                        <SharedDataTableListItem
-                            v-for="user in users"
-                            :key="user.id"
-                            :title="`${user.first_name || ''} ${user.last_name || ''}`.trim()"
-                            :subtitle="user.email"
-                            :is-selected="infoShow && editedUser.id === user.id"
-                            :avatar-src="user.photo || '/images/profile/user.png'"
-                            :avatar-fallback="user.first_name?.charAt(0)?.toUpperCase()"
-                            :show-checkbox="false"
-                            :actions="[
-                                { id: 'view', icon: 'mdi-eye-outline' },
-                                { id: 'edit', icon: 'mdi-square-edit-outline' },
-                                { id: 'delete', icon: 'mdi-trash-can-outline' }
-                            ]"
-                            @select="infoItem(user)"
-                            @action="(actionId) => {
-                                if (actionId === 'view') infoItem(user);
-                                else if (actionId === 'edit') editItem(user);
-                                else if (actionId === 'delete') deleteItem(user);
-                            }"
-                        >
-                            <template #extra-button>
-                                <span class="role-badge">{{ user.role }}</span>
-                            </template>
-                        </SharedDataTableListItem>
-                    </template>
-                </SharedDataTableList>
-            </div>
-
-            <!-- Right Section: Detail Panel -->
-            <div class="flex flex-col h-full">
-                <SharedDataTableDetailPanel>
-                    <template #user-card>
-                        <SharedUserCard :user="userStore.user" />
-                    </template>
-                    
-                    <template #content>
-                        <div v-if="infoShow && editedUser.id">
-                            <SharedDataTableDetailView
-                                :show-logo="true"
-                                :logo-src="editedUser.photo || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=400'"
-                                :logo-alt="editedUser.full_name || editedUser.username"
-                                logo-placeholder-icon="mdi-account-outline"
-                            >
-                                <template #title>
-                                    <div class="flex items-center justify-between gap-2">
-                                        <div class="flex-1">
-                                            <h3 class="user-name">{{ editedUser.full_name || `${editedUser.first_name || ''} ${editedUser.last_name || ''}`.trim() }}</h3>
-                                            <p class="user-email">{{ editedUser.role }}</p>
-                                        </div>
-                                    </div>
-                                </template>
-                                
-                                <template #fields>
-                                    <!-- Personal Information Section -->
-                                    <div class="mb-6">
-                                        <div class="flex items-center mb-4">
-                                            <h2 class="text-base font-semibold text-gray-900">Personal Information</h2>
-                                        </div>
-                                        <div class="flex flex-col gap-4">
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Full Name</label>
-                                                <div class="field-value">{{ editedUser.full_name || `${editedUser.first_name || ''} ${editedUser.last_name || ''}`.trim() }}</div>
-                                            </div>
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Email Address</label>
-                                                <div class="field-value">{{ editedUser.email }}</div>
-                                            </div>
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Phone Number</label>
-                                                <div class="field-value">{{ editedUser.phone || 'Not specified' }}</div>
-                                            </div>
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Department</label>
-                                                <div class="field-value">{{ editedUser.department || 'Not specified' }}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Account Information Section -->
-                                    <div>
-                                        <div class="flex items-center mb-4">
-                                            <h2 class="text-base font-semibold text-gray-900">Account Information</h2>
-                                        </div>
-                                        <div class="flex flex-col gap-4">
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Username</label>
-                                                <div class="field-value">{{ editedUser.username }}</div>
-                                            </div>
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Role</label>
-                                                <div class="field-value">{{ editedUser.role }}</div>
-                                            </div>
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Access Level</label>
-                                                <div class="field-value">
-                                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium">
-                                                        {{ getAccessLevel(editedUser.role) }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Permissions</label>
-                                                <div class="field-value">
-                                                    <div class="flex flex-wrap gap-2">
-                                                        <span 
-                                                            v-for="permission in getPermissions(editedUser.role)" 
-                                                            :key="permission"
-                                                            class="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium"
-                                                        >
-                                                            {{ permission }}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Account Status</label>
-                                                <div class="field-value">
-                                                    <span class="text-green-600 font-semibold flex items-center">
-                                                        <span class="w-2 h-2 rounded-full bg-green-600 mr-2"></span> Active
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Last Login</label>
-                                                <div class="field-value">{{ formatDate(editedUser.last_login) }}</div>
-                                            </div>
-                                            <div class="flex flex-col gap-1.5">
-                                                <label class="field-label">Account Created</label>
-                                                <div class="field-value">{{ formatDate(editedUser.created_at) }}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
-                            </SharedDataTableDetailView>
-                        </div>
-                        
-                        <SharedDataTableEmptyState
-                            v-else
-                            icon="mdi-account-outline"
-                            title="No user selected"
-                            message="Select a user from the list to view details"
-                        />
-                    </template>
-                </SharedDataTableDetailPanel>
-            </div>
-        </div>
-
-        <!-- Dialog: Add/Edit Form -->
-        <v-overlay 
-            v-model="dialog" 
-            class="d-flex justify-end align-end"
-            width="83%"
-            max-width="83%"
-            persistent
-            transition="dialog-bottom-transition"
-            scrim="rgba(0,0,0,0.4)"
-        >
-            <v-card class="rounded-xl">
-                <v-card-text class="px-6 py-6">
-                    <UserForm 
-                        ref="userFormCompRef" 
-                        v-model="editedUser"
-                        @update:potential-validity="isFormPotentiallyValid = $event" 
-                    />
-                    <v-card-actions class="px-6 py-4 border-t border-gray-200">
-                        <div class="text-sm font-medium text-gray-800">{{ formTitle }}</div>
-                        <v-spacer />
-                        <v-btn
-                            variant="outlined"
-                            color="grey-darken-1"
-                            rounded="lg"
-                            @click="close"
-                        >
-                            Cancel
-                        </v-btn>
-                        <v-btn
-                            variant="flat"
-                            :style="{ background:'#1e1e1e', color:'#fff', minWidth: '150px'}"
-                            @click="save"
-                            :loading="saving"
-                            :disabled="!isFormPotentiallyValid || saving"
-                            rounded="lg"
-                        >
-                            Save
-                        </v-btn>
-                    </v-card-actions>
-                </v-card-text>
-
-            </v-card>
-        </v-overlay>
-
-        <!-- Delete Confirmation Dialog -->
-        <UserDeleteConfirm 
-            :showModal="dialogDelete" 
-            @update:showModal="dialogDelete = $event"
-            :closeAction="closeDelete" 
-            :deleteAction="deleteItemConfirm" 
+  <div>
+    <!-- Main Content: Header + List on Left, Detail Panel on Right -->
+    <div class="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6 items-stretch">
+      <!-- Left Section: Header + List -->
+      <div class="flex flex-col gap-4">
+        <!-- Header Section -->
+        <SharedDataTableHeader
+          v-model:search="search"
+          search-placeholder="Search users..."
+          :current-page="tableOptions.page"
+          :items-per-page="tableOptions.itemsPerPage"
+          :total-items="totalUsers"
+          :page-start="pageStart"
+          :page-end="pageEnd"
+          action-label="New User"
+          :show-export="true"
+          @update:search="search = $event"
+          @go-first="goFirst"
+          @go-prev="goPrev"
+          @go-next="goNext"
+          @go-last="goLast"
+          @action-click="openNewUserDialog"
+          @export="exportData"
         />
+
+        <!-- User List -->
+        <SharedDataTableList
+          :items="users"
+          :loading="loading"
+          title="User List"
+          :total-items="totalUsers"
+          loading-text="Loading users..."
+          empty-icon="mdi-account-multiple-outline"
+          empty-title="No users found"
+          empty-message="Try adjusting your search"
+          :show-sort="true"
+          :current-sort="currentSortValue"
+          @refresh="refreshTable"
+          @sort="handleSort"
+        >
+          <template #items>
+            <SharedDataTableListItem
+              v-for="user in users"
+              :key="user.id"
+              :title="`${user.first_name || ''} ${user.last_name || ''}`.trim()"
+              :subtitle="user.email"
+              :is-selected="infoShow && editedUser.id === user.id"
+              :avatar-src="user.photo || '/images/profile/user.png'"
+              :avatar-fallback="user.first_name?.charAt(0)?.toUpperCase()"
+              :show-checkbox="false"
+              :actions="[
+                { id: 'view', icon: 'mdi-eye-outline' },
+                { id: 'edit', icon: 'mdi-square-edit-outline' },
+                { id: 'delete', icon: 'mdi-trash-can-outline' },
+              ]"
+              @select="infoItem(user)"
+              @action="
+                (actionId) => {
+                  if (actionId === 'view') infoItem(user);
+                  else if (actionId === 'edit') editItem(user);
+                  else if (actionId === 'delete') deleteItem(user);
+                }
+              "
+            >
+              <template #extra-button>
+                <span class="role-badge">{{ user.role }}</span>
+              </template>
+            </SharedDataTableListItem>
+          </template>
+        </SharedDataTableList>
+      </div>
+
+      <!-- Right Section: Detail Panel -->
+      <div class="flex flex-col h-full">
+        <SharedDataTableDetailPanel>
+          <template #user-card>
+            <SharedUserCard :user="userStore.user" />
+          </template>
+
+          <template #content>
+            <div v-if="infoShow && editedUser.id">
+              <SharedDataTableDetailView
+                :show-logo="true"
+                :logo-src="
+                  editedUser.photo ||
+                  'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=400'
+                "
+                :logo-alt="editedUser.full_name || editedUser.username"
+                logo-placeholder-icon="mdi-account-outline"
+              >
+                <template #title>
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex-1">
+                      <h3 class="user-name">
+                        {{
+                          editedUser.full_name ||
+                          `${editedUser.first_name || ""} ${
+                            editedUser.last_name || ""
+                          }`.trim()
+                        }}
+                      </h3>
+                      <p class="user-email">{{ editedUser.role }}</p>
+                    </div>
+                  </div>
+                </template>
+
+                <template #fields>
+                  <!-- Personal Information Section -->
+                  <div class="mb-6">
+                    <div class="flex items-center mb-4">
+                      <h2 class="text-base font-semibold text-gray-900">
+                        Personal Information
+                      </h2>
+                    </div>
+                    <div class="flex flex-col gap-4">
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Full Name</label>
+                        <div class="field-value">
+                          {{
+                            editedUser.full_name ||
+                            `${editedUser.first_name || ""} ${
+                              editedUser.last_name || ""
+                            }`.trim()
+                          }}
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Email Address</label>
+                        <div class="field-value">{{ editedUser.email }}</div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Phone Number</label>
+                        <div class="field-value">
+                          {{ editedUser.phone || "Not specified" }}
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Department</label>
+                        <div class="field-value">
+                          {{ editedUser.department || "Not specified" }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Account Information Section -->
+                  <div>
+                    <div class="flex items-center mb-4">
+                      <h2 class="text-base font-semibold text-gray-900">
+                        Account Information
+                      </h2>
+                    </div>
+                    <div class="flex flex-col gap-4">
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Username</label>
+                        <div class="field-value">{{ editedUser.username }}</div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Role</label>
+                        <div class="field-value">{{ editedUser.role }}</div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Access Level</label>
+                        <div class="field-value">
+                          <span
+                            class="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium"
+                          >
+                            {{ getAccessLevel(editedUser.role) }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Permissions</label>
+                        <div class="field-value">
+                          <div class="flex flex-wrap gap-2">
+                            <span
+                              v-for="permission in getPermissions(
+                                editedUser.role
+                              )"
+                              :key="permission"
+                              class="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium"
+                            >
+                              {{ permission }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Account Status</label>
+                        <div class="field-value">
+                          <span
+                            class="text-green-600 font-semibold flex items-center"
+                          >
+                            <span
+                              class="w-2 h-2 rounded-full bg-green-600 mr-2"
+                            ></span>
+                            Active
+                          </span>
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Last Login</label>
+                        <div class="field-value">
+                          {{ formatDate(editedUser.last_login) }}
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="field-label">Account Created</label>
+                        <div class="field-value">
+                          {{ formatDate(editedUser.created_at) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </SharedDataTableDetailView>
+            </div>
+
+            <SharedDataTableEmptyState
+              v-else
+              icon="mdi-account-outline"
+              title="No user selected"
+              message="Select a user from the list to view details"
+            />
+          </template>
+        </SharedDataTableDetailPanel>
+      </div>
     </div>
+
+    <!-- Dialog: Add/Edit Form -->
+    <v-overlay
+      v-model="dialog"
+      class="d-flex justify-end align-end"
+      width="83%"
+      max-width="83%"
+      persistent
+      transition="dialog-bottom-transition"
+      scrim="rgba(0,0,0,0.4)"
+    >
+      <v-card class="rounded-xl">
+        <v-card-text class="px-6 py-6">
+          <UserForm
+            ref="userFormCompRef"
+            v-model="editedUser"
+            @update:potential-validity="isFormPotentiallyValid = $event"
+          />
+          <v-card-actions class="px-6 py-4 border-t border-gray-200">
+            <div class="text-sm font-medium text-gray-800">{{ formTitle }}</div>
+            <v-spacer />
+            <v-btn
+              variant="outlined"
+              color="grey-darken-1"
+              rounded="lg"
+              @click="close"
+            >
+              Cancel
+            </v-btn>
+            <v-btn
+              variant="flat"
+              :style="{
+                background: '#1e1e1e',
+                color: '#fff',
+                minWidth: '150px',
+              }"
+              @click="save"
+              :loading="saving"
+              :disabled="!isFormPotentiallyValid || saving"
+              rounded="lg"
+            >
+              Save
+            </v-btn>
+          </v-card-actions>
+        </v-card-text>
+      </v-card>
+    </v-overlay>
+
+    <!-- Delete Confirmation Dialog -->
+    <UserDeleteConfirm
+      :showModal="dialogDelete"
+      @update:showModal="dialogDelete = $event"
+      :closeAction="closeDelete"
+      :deleteAction="deleteItemConfirm"
+    />
+  </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue';
-import { useUserStore } from '@/stores/User';
-import UserForm from '@/components/dashboards/User/Form.vue';
-import UserDeleteConfirm from '@/components/dashboards/User/DeleteConfirm.vue';
+import { ref, reactive, computed, watch, onMounted } from "vue";
+import { useUserStore } from "@/stores/User";
+import UserForm from "@/components/dashboards/User/Form.vue";
+import UserDeleteConfirm from "@/components/dashboards/User/DeleteConfirm.vue";
 
 const userStore = useUserStore();
 
@@ -264,424 +307,423 @@ const totalUsers = ref(0);
 const editedIndex = ref(-1);
 
 const defaultUser = {
-    id: null,
-    username: '',
-    first_name: '',
-    last_name: '',
-    full_name: '',
-    email: '',
-    role: '',
-    phone: '',
-    department: '',
-    photo: null,
-    photoFile: null,
-    last_login: '',
-    created_at: ''
+  id: null,
+  username: "",
+  first_name: "",
+  last_name: "",
+  full_name: "",
+  email: "",
+  role: "",
+  phone: "",
+  department: "",
+  photo: null,
+  photoFile: null,
+  last_login: "",
+  created_at: "",
 };
 const editedUser = ref({ ...defaultUser });
 const userToDelete = ref(null);
 
 const formatDate = (dateString) => {
-    if (!dateString) return 'Not specified';
-    return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
+  if (!dateString) return "Not specified";
+  return new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 };
 
 const getAccessLevel = (role) => {
-    const accessLevels = {
-        'Board of Directors': 'Executive',
-        'Admin Tender': 'Administrator',
-        'PMO': 'Manager',
-        'PM': 'Manager',
-        'AM': 'Manager',
-        'HRD': 'Manager',
-        'Finance': 'Manager',
-        'GA': 'Standard',
-        'Engineer': 'Standard',
-        'Technical': 'Standard',
-        'Operational': 'Standard',
-        'Sales': 'Standard',
-        'PIC': 'Standard'
-    };
-    return accessLevels[role] || 'Standard';
+  const accessLevels = {
+    "Board of Directors": "Executive",
+    "Admin Tender": "Administrator",
+    PMO: "Manager",
+    PM: "Manager",
+    AM: "Manager",
+    HRD: "Manager",
+    Finance: "Manager",
+    GA: "Standard",
+    Engineer: "Standard",
+    Technical: "Standard",
+    Operational: "Standard",
+    Sales: "Standard",
+    PIC: "Standard",
+  };
+  return accessLevels[role] || "Standard";
 };
 
 const getPermissions = (role) => {
-    const permissions = {
-        'Board of Directors': ['Full Access', 'User Management', 'System Settings', 'Reports'],
-        'Admin Tender': ['User Management', 'Tender Management', 'Reports'],
-        'PMO': ['Project Management', 'Team Management', 'Reports'],
-        'PM': ['Project Management', 'Team Management'],
-        'AM': ['Account Management', 'Client Relations'],
-        'HRD': ['HR Management', 'Employee Records'],
-        'Finance': ['Financial Management', 'Budget Control'],
-        'Engineer': ['Technical Access', 'Project Collaboration'],
-        'Technical': ['Technical Access', 'System Maintenance'],
-        'Operational': ['Operations Management'],
-        'Sales': ['Sales Management', 'Client Relations'],
-        'GA': ['General Administration'],
-        'PIC': ['Project Coordination']
-    };
-    return permissions[role] || ['Basic Access'];
+  const permissions = {
+    "Board of Directors": [
+      "Full Access",
+      "User Management",
+      "System Settings",
+      "Reports",
+    ],
+    "Admin Tender": ["User Management", "Tender Management", "Reports"],
+    PMO: ["Project Management", "Team Management", "Reports"],
+    PM: ["Project Management", "Team Management"],
+    AM: ["Account Management", "Client Relations"],
+    HRD: ["HR Management", "Employee Records"],
+    Finance: ["Financial Management", "Budget Control"],
+    Engineer: ["Technical Access", "Project Collaboration"],
+    Technical: ["Technical Access", "System Maintenance"],
+    Operational: ["Operations Management"],
+    Sales: ["Sales Management", "Client Relations"],
+    GA: ["General Administration"],
+    PIC: ["Project Coordination"],
+  };
+  return permissions[role] || ["Basic Access"];
 };
 
 const tableOptions = reactive({
-    page: 1,
-    itemsPerPage: 10,
-    sortBy: [],
+  page: 1,
+  itemsPerPage: 10,
+  sortBy: [],
 });
 
 const pageStart = computed(() => {
-    if (totalUsers.value === 0) return 0;
-    return (tableOptions.page - 1) * tableOptions.itemsPerPage + 1;
+  if (totalUsers.value === 0) return 0;
+  return (tableOptions.page - 1) * tableOptions.itemsPerPage + 1;
 });
 const pageEnd = computed(() => {
-    return Math.min(tableOptions.page * tableOptions.itemsPerPage, totalUsers.value);
+  return Math.min(
+    tableOptions.page * tableOptions.itemsPerPage,
+    totalUsers.value
+  );
 });
 
-function goFirst() { if (tableOptions.page > 1) tableOptions.page = 1; }
-function goPrev() { if (tableOptions.page > 1) tableOptions.page--; }
+function goFirst() {
+  if (tableOptions.page > 1) tableOptions.page = 1;
+}
+function goPrev() {
+  if (tableOptions.page > 1) tableOptions.page--;
+}
 function goNext() {
-    const maxPage = Math.ceil(totalUsers.value / tableOptions.itemsPerPage);
-    if (tableOptions.page < maxPage) tableOptions.page++;
+  const maxPage = Math.ceil(totalUsers.value / tableOptions.itemsPerPage);
+  if (tableOptions.page < maxPage) tableOptions.page++;
 }
 function goLast() {
-    const maxPage = Math.ceil(totalUsers.value / tableOptions.itemsPerPage);
-    if (tableOptions.page < maxPage) tableOptions.page = maxPage;
+  const maxPage = Math.ceil(totalUsers.value / tableOptions.itemsPerPage);
+  if (tableOptions.page < maxPage) tableOptions.page = maxPage;
 }
 
-watch(() => tableOptions.page, async (page) => {
-    await loadItems({ page, itemsPerPage: tableOptions.itemsPerPage, sortBy: tableOptions.sortBy });
-});
+watch(
+  () => tableOptions.page,
+  async (page) => {
+    await loadItems({
+      page,
+      itemsPerPage: tableOptions.itemsPerPage,
+      sortBy: tableOptions.sortBy,
+    });
+  }
+);
 
 // Reset to first page and reload when search changes
 watch(search, async () => {
-    tableOptions.page = 1;
-    await loadItems({ page: 1, itemsPerPage: tableOptions.itemsPerPage, sortBy: tableOptions.sortBy });
+  tableOptions.page = 1;
+  await loadItems({
+    page: 1,
+    itemsPerPage: tableOptions.itemsPerPage,
+    sortBy: tableOptions.sortBy,
+  });
 });
 
 const formTitle = computed(() => {
-    const name = editedUser.value.id ? `${editedUser.value.first_name || ''} ${editedUser.value.last_name || ''}`.trim() : 'New User';
-    return editedIndex.value === -1 ? 'New User' : `Edit ${name || 'User'}`;
+  const name = editedUser.value.id
+    ? `${editedUser.value.first_name || ""} ${
+        editedUser.value.last_name || ""
+      }`.trim()
+    : "New User";
+  return editedIndex.value === -1 ? "New User" : `Edit ${name || "User"}`;
 });
 
 watch(dialog, (val) => {
-    if (!val) close();
+  if (!val) close();
 });
 watch(dialogDelete, (val) => val || closeDelete());
 
 async function loadItems(options) {
-    loading.value = true;
-    tableOptions.page = options.page;
-    tableOptions.itemsPerPage = options.itemsPerPage;
-    tableOptions.sortBy = options.sortBy;
+  loading.value = true;
+  tableOptions.page = options.page;
+  tableOptions.itemsPerPage = options.itemsPerPage;
+  tableOptions.sortBy = options.sortBy;
 
-    let apiSortBy = [];
-    if (options.sortBy && options.sortBy.length > 0) {
-        apiSortBy = options.sortBy.map(sort => sort.key === 'full_name' ? { ...sort, key: 'first_name' } : sort);
-    }
+  // Map 'full_name' sort to 'first_name' for backend compatibility
+  let apiSortBy = [];
+  if (options.sortBy && options.sortBy.length > 0) {
+    apiSortBy = options.sortBy.map((sort) =>
+      sort.key === "full_name" ? { ...sort, key: "first_name" } : sort
+    );
+  }
 
-    try {
-        if (search.value && typeof userStore.getAll === 'function') {
-            const all = await userStore.getAll();
-            const normalized = Array.isArray(all) ? all.map(u => ({
-                ...u,
-                full_name: [u.first_name, u.last_name].filter(Boolean).join(' ')
-            })) : [];
-            const q = String(search.value).toLowerCase();
-            const filtered = normalized.filter(u => {
-                return (
-                    (u.full_name || '').toLowerCase().includes(q) ||
-                    (u.email || '').toLowerCase().includes(q) ||
-                    (u.username || '').toLowerCase().includes(q) ||
-                    (u.role || '').toLowerCase().includes(q)
-                );
-            });
+  try {
+    // ✅ Pure Server-Side: Always use backend API for search, filter, sort, and pagination
+    const data = await userStore.getUsers(
+      "", // role filter (empty = all roles)
+      "", // status filter (empty = all statuses)
+      {
+        page: options.page,
+        itemsPerPage: options.itemsPerPage,
+        sortBy: apiSortBy,
+        search: search.value, // Backend handles search query
+      }
+    );
 
-            // Apply client-side sort if any
-            let sorted = filtered;
-            if (apiSortBy.length > 0) {
-                const s = apiSortBy[0];
-                const key = s.key;
-                const dir = s.order === 'desc' ? -1 : 1;
-                sorted = [...filtered].sort((a, b) => {
-                    const av = (a[key] ?? '').toString().toLowerCase();
-                    const bv = (b[key] ?? '').toString().toLowerCase();
-                    if (av < bv) return -1 * dir;
-                    if (av > bv) return 1 * dir;
-                    return 0;
-                });
-            }
-
-            totalUsers.value = sorted.length;
-            const start = (tableOptions.page - 1) * tableOptions.itemsPerPage;
-            users.value = sorted.slice(start, start + tableOptions.itemsPerPage);
-        } else {
-            const data = await userStore.getUsers(
-                '', // role
-                '', // status
-                {
-                page: options.page,
-                itemsPerPage: options.itemsPerPage,
-                sortBy: apiSortBy,
-                search: search.value,
-                }
-            );
-            users.value = data.items;
-            totalUsers.value = data.totalItems;
-        }
-    } catch (err) {
-        console.error("Failed to load users:", err);
-        users.value = [];
-        totalUsers.value = 0;
-    } finally {
-        loading.value = false;
-    }
+    users.value = data.items;
+    totalUsers.value = data.totalItems;
+  } catch (err) {
+    console.error("Failed to load users:", err);
+    users.value = [];
+    totalUsers.value = 0;
+  } finally {
+    loading.value = false;
+  }
 }
 
 function refreshTable() {
-    infoShow.value = false;
-    Object.assign(editedUser.value, defaultUser);
-    editedIndex.value = -1;
-    loadItems(tableOptions);
+  infoShow.value = false;
+  Object.assign(editedUser.value, defaultUser);
+  editedIndex.value = -1;
+  loadItems(tableOptions);
 }
 
 function openNewUserDialog() {
-    editedIndex.value = -1;
-    editedUser.value = { ...defaultUser };
-    infoShow.value = false;
-    dialog.value = true;
+  editedIndex.value = -1;
+  editedUser.value = { ...defaultUser };
+  infoShow.value = false;
+  dialog.value = true;
 }
 
 function editItem(item) {
-    editedIndex.value = users.value.findIndex(u => u.id === item.id);
-    editedUser.value = { ...defaultUser, ...item, photoFile: null };
-    infoShow.value = false;
-    dialog.value = true;
+  editedIndex.value = users.value.findIndex((u) => u.id === item.id);
+  editedUser.value = { ...defaultUser, ...item, photoFile: null };
+  infoShow.value = false;
+  dialog.value = true;
 }
 
 function infoItem(item) {
-    editedUser.value = { ...defaultUser, ...item };
-    infoShow.value = true;
+  editedUser.value = { ...defaultUser, ...item };
+  infoShow.value = true;
 }
 
 function deleteItem(item) {
-    userToDelete.value = { ...item };
-    dialogDelete.value = true;
+  userToDelete.value = { ...item };
+  dialogDelete.value = true;
 }
 
 async function deleteItemConfirm() {
-    if (!userToDelete.value?.id) return;
-    try {
-        await userStore.deleteUser(userToDelete.value.id);
-        closeDelete();
-        loadItems(tableOptions);
-    } catch (error) {
-        console.error("Failed to delete user:", error);
-    }
+  if (!userToDelete.value?.id) return;
+  try {
+    await userStore.deleteUser(userToDelete.value.id);
+    closeDelete();
+    loadItems(tableOptions);
+  } catch (error) {
+    console.error("Failed to delete user:", error);
+  }
 }
 
 function close() {
-    dialog.value = false;
-    isFormPotentiallyValid.value = false;
-    setTimeout(() => {
-        editedUser.value = { ...defaultUser };
-        editedIndex.value = -1;
-    }, 300);
+  dialog.value = false;
+  isFormPotentiallyValid.value = false;
+  setTimeout(() => {
+    editedUser.value = { ...defaultUser };
+    editedIndex.value = -1;
+  }, 300);
 }
 
 function closeDelete() {
-    dialogDelete.value = false;
-    setTimeout(() => {
-        userToDelete.value = null;
-    }, 300);
+  dialogDelete.value = false;
+  setTimeout(() => {
+    userToDelete.value = null;
+  }, 300);
 }
 
 async function save() {
-    if (infoShow.value) {
-        close();
-        return;
+  if (infoShow.value) {
+    close();
+    return;
+  }
+
+  saving.value = true;
+
+  if (userFormCompRef.value) {
+    const isValid = await userFormCompRef.value.validateAndCheck();
+    if (!isValid) {
+      saving.value = false;
+      return;
+    }
+  } else {
+    console.error("UserForm component reference is not available.");
+    saving.value = false;
+    return;
+  }
+
+  try {
+    const payload = { ...editedUser.value };
+    if (!(payload.photoFile instanceof File)) {
+      delete payload.photoFile;
     }
 
-    saving.value = true;
-
-    if (userFormCompRef.value) {
-        const isValid = await userFormCompRef.value.validateAndCheck();
-        if (!isValid) {
-            saving.value = false;
-            return;
-        }
+    if (editedIndex.value > -1 && editedUser.value.id) {
+      await userStore.updateUser(editedUser.value.id, payload);
     } else {
-        console.error("UserForm component reference is not available.");
-        saving.value = false;
-        return;
+      await userStore.addUser(payload);
     }
-
-    try {
-        const payload = { ...editedUser.value };
-        if (!(payload.photoFile instanceof File)) {
-            delete payload.photoFile;
-        }
-
-        if (editedIndex.value > -1 && editedUser.value.id) {
-            await userStore.updateUser(editedUser.value.id, payload);
-        } else {
-            await userStore.addUser(payload);
-        }
-        close();
-        loadItems(tableOptions);
-    } catch (error) {
-        console.error("Failed to save user:", error);
-    } finally {
-        saving.value = false;
-    }
+    close();
+    loadItems(tableOptions);
+  } catch (error) {
+    console.error("Failed to save user:", error);
+  } finally {
+    saving.value = false;
+  }
 }
 
 // Export functionality
 const exportData = (format) => {
-    const data = users.value.map(user => ({
-        'Full Name': `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-        Email: user.email,
-        Role: user.role,
-        Username: user.username,
-    }));
+  const data = users.value.map((user) => ({
+    "Full Name": `${user.first_name || ""} ${user.last_name || ""}`.trim(),
+    Email: user.email,
+    Role: user.role,
+    Username: user.username,
+  }));
 
-    if (format === 'csv') {
-        const headers = Object.keys(data[0]);
-        const csvContent = [
-            headers.join(','),
-            ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
-        ].join('\n');
-        
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `users-${new Date().toISOString().split('T')[0]}.csv`;
-        link.click();
-    } else if (format === 'excel') {
-        const headers = Object.keys(data[0]);
-        const csvContent = [
-            headers.join('\t'),
-            ...data.map(row => headers.map(header => row[header] || '').join('\t'))
-        ].join('\n');
-        
-        const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `users-${new Date().toISOString().split('T')[0]}.xls`;
-        link.click();
-    }
+  if (format === "csv") {
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(","),
+      ...data.map((row) =>
+        headers.map((header) => `"${row[header] || ""}"`).join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `users-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+  } else if (format === "excel") {
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join("\t"),
+      ...data.map((row) =>
+        headers.map((header) => row[header] || "").join("\t")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "application/vnd.ms-excel" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `users-${new Date().toISOString().split("T")[0]}.xls`;
+    link.click();
+  }
 };
 
-// Sort functionality
-const currentSortValue = ref('name-asc');
-const handleSort = (sortValue) => {
-    currentSortValue.value = sortValue;
-    const sorted = [...users.value];
-    
-    switch (sortValue   ) {
-        case 'name-asc':
-            sorted.sort((a, b) => {
-                const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim();
-                const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim();
-                return nameA.localeCompare(nameB);
-            });
-            break;
-        case 'name-desc':
-            sorted.sort((a, b) => {
-                const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim();
-                const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim();
-                return nameB.localeCompare(nameA);
-            });
-            break;
-        case 'date-desc':
-            sorted.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-            break;
-        case 'date-asc':
-            sorted.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-            break;
-    }
-    
-    users.value = sorted;
+// Sort functionality - delegated to server-side
+const currentSortValue = ref("name-asc");
+const handleSort = async (sortValue) => {
+  currentSortValue.value = sortValue;
+
+  // Map sort value to API sortBy format
+  let sortBy = [];
+  switch (sortValue) {
+    case "name-asc":
+      sortBy = [{ key: "full_name", order: "asc" }];
+      break;
+    case "name-desc":
+      sortBy = [{ key: "full_name", order: "desc" }];
+      break;
+    case "date-desc":
+      sortBy = [{ key: "created_at", order: "desc" }];
+      break;
+    case "date-asc":
+      sortBy = [{ key: "created_at", order: "asc" }];
+      break;
+  }
+
+  // Update table options and reload with server-side sorting
+  tableOptions.sortBy = sortBy;
+  await loadItems({
+    page: tableOptions.page,
+    itemsPerPage: tableOptions.itemsPerPage,
+    sortBy: sortBy,
+  });
 };
 
 // Initial load to populate table
 onMounted(async () => {
-    try {
-        await Promise.all([
-            userStore.fetchUser(),
-            loadItems({
-                page: tableOptions.page,
-                itemsPerPage: tableOptions.itemsPerPage,
-                sortBy: tableOptions.sortBy,
-                search: search.value,
-            })
-        ]);
-    } catch (error) {
-        console.error('Initialization failed:', error);
-    }
+  try {
+    await Promise.all([
+      userStore.fetchUser(),
+      loadItems({
+        page: tableOptions.page,
+        itemsPerPage: tableOptions.itemsPerPage,
+        sortBy: tableOptions.sortBy,
+        search: search.value,
+      }),
+    ]);
+  } catch (error) {
+    console.error("Initialization failed:", error);
+  }
 });
 </script>
 
 <style scoped>
 .role-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 12px;
-    font-size: 11px;
-    font-weight: 500;
-    color: #374151;
-    background: white;
-    border: 1px solid #d1d5db;
-    border-radius: 18px;
-    text-decoration: none;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-    text-transform: capitalize;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #374151;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 18px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  text-transform: capitalize;
 }
 
 .role-badge:hover {
-    background-color: #f3f4f6;
-    border-color: #9ca3af;
-    color: #1e1e1e;
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+  color: #1e1e1e;
 }
 
 .user-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: #000;
-    margin: 0;
-    line-height: 1.3;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .user-email {
-    font-size: 13px;
-    color: #6b7280;
-    margin: 0;
-    line-height: 1.4;
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .field-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: #8e8e93;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8e8e93;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .field-value {
-    font-size: 14px;
-    color: #000;
-    padding: 8px 0;
-    border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+  color: #000;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 /* Remove Vuetify default shadows globally for this page */
 :deep(.v-card) {
-    box-shadow: none !important;
+  box-shadow: none !important;
 }
 </style>

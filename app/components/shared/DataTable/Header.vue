@@ -67,7 +67,7 @@
                         Export
                     </v-btn>
                 </template>
-                <v-list density="compact" class="py-1">
+                <v-list density="compact" class="py-1 mt-2 border" style="box-shadow: none;">
                     <v-list-item @click="$emit('export', 'csv')" class="cursor-pointer">
                         <template v-slot:prepend>
                             <v-icon size="small" color="success">mdi-file-delimited-outline</v-icon>
