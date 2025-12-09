@@ -6,11 +6,11 @@
       <div class="flex flex-col gap-4">
         <!-- Header Section -->
         <SharedDataTableHeader
-          v-model:search="search"
+          :search="search"
           search-placeholder="Search users..."
           :current-page="tableOptions.page"
           :items-per-page="tableOptions.itemsPerPage"
-          :total-items="totalUsers"
+          :total-items="usersData.totalItems"
           :page-start="pageStart"
           :page-end="pageEnd"
           action-label="New User"
@@ -26,10 +26,10 @@
 
         <!-- User List -->
         <SharedDataTableList
-          :items="users"
+          :items="usersData.results"
           :loading="loading"
           title="User List"
-          :total-items="totalUsers"
+          :total-items="usersData.totalItems"
           loading-text="Loading users..."
           empty-icon="mdi-account-multiple-outline"
           empty-title="No users found"
@@ -41,7 +41,7 @@
         >
           <template #items>
             <SharedDataTableListItem
-              v-for="user in users"
+              v-for="user in usersData.results"
               :key="user.id"
               :title="`${user.first_name || ''} ${user.last_name || ''}`.trim()"
               :subtitle="user.email"
@@ -229,51 +229,37 @@
     </div>
 
     <!-- Dialog: Add/Edit Form -->
-    <v-overlay
-      v-model="dialog"
-      class="d-flex justify-end align-end"
-      width="83%"
-      max-width="83%"
-      persistent
-      transition="dialog-bottom-transition"
-      scrim="rgba(0,0,0,0.4)"
-    >
+    <v-dialog v-model="dialog" max-width="1000px" persistent>
       <v-card class="rounded-xl">
+        <v-card-title class="px-6 py-4 border-b border-gray-200">
+          <span class="text-lg font-semibold">{{ formTitle }}</span>
+        </v-card-title>
+
         <v-card-text class="px-6 py-6">
           <UserForm
             ref="userFormCompRef"
             v-model="editedUser"
             @update:potential-validity="isFormPotentiallyValid = $event"
           />
-          <v-card-actions class="px-6 py-4 border-t border-gray-200">
-            <div class="text-sm font-medium text-gray-800">{{ formTitle }}</div>
-            <v-spacer />
-            <v-btn
-              variant="outlined"
-              color="grey-darken-1"
-              rounded="lg"
-              @click="close"
-            >
-              Cancel
-            </v-btn>
-            <v-btn
-              variant="flat"
-              :style="{
-                background: '#1e1e1e',
-                color: '#fff',
-                minWidth: '150px',
-              }"
-              @click="save"
-              :loading="saving"
-              :disabled="!isFormPotentiallyValid || saving"
-              rounded="lg"
-            >
-              Save
-            </v-btn>
-          </v-card-actions>
         </v-card-text>
+
+        <v-card-actions class="px-6 py-4 border-t border-gray-200">
+          <v-spacer />
+          <v-btn variant="outlined" color="grey-darken-1" @click="close">
+            Cancel
+          </v-btn>
+          <v-btn
+            variant="flat"
+            :style="{ background: '#1e1e1e', color: '#fff' }"
+            @click="save"
+            :loading="saving"
+            :disabled="!isFormPotentiallyValid || saving"
+          >
+            Save
+          </v-btn>
+        </v-card-actions>
       </v-card>
-    </v-overlay>
+    </v-dialog>
 
     <!-- Delete Confirmation Dialog -->
     <UserDeleteConfirm
@@ -302,8 +288,10 @@ const search = ref(null);
 const userFormCompRef = ref(null);
 const isFormPotentiallyValid = ref(false);
 
-const users = ref([]);
-const totalUsers = ref(0);
+const usersData = reactive({
+  results: [],
+  totalItems: 0,
+});
 const editedIndex = ref(-1);
 
 const defaultUser = {
@@ -383,13 +371,13 @@ const tableOptions = reactive({
 });
 
 const pageStart = computed(() => {
-  if (totalUsers.value === 0) return 0;
+  if (usersData.totalItems === 0) return 0;
   return (tableOptions.page - 1) * tableOptions.itemsPerPage + 1;
 });
 const pageEnd = computed(() => {
   return Math.min(
     tableOptions.page * tableOptions.itemsPerPage,
-    totalUsers.value
+    usersData.totalItems
   );
 });
 
@@ -400,11 +388,11 @@ function goPrev() {
   if (tableOptions.page > 1) tableOptions.page--;
 }
 function goNext() {
-  const maxPage = Math.ceil(totalUsers.value / tableOptions.itemsPerPage);
+  const maxPage = Math.ceil(usersData.totalItems / tableOptions.itemsPerPage);
   if (tableOptions.page < maxPage) tableOptions.page++;
 }
 function goLast() {
-  const maxPage = Math.ceil(totalUsers.value / tableOptions.itemsPerPage);
+  const maxPage = Math.ceil(usersData.totalItems / tableOptions.itemsPerPage);
   if (tableOptions.page < maxPage) tableOptions.page = maxPage;
 }
 
@@ -449,7 +437,6 @@ async function loadItems(options) {
   tableOptions.itemsPerPage = options.itemsPerPage;
   tableOptions.sortBy = options.sortBy;
 
-  // Map 'full_name' sort to 'first_name' for backend compatibility
   let apiSortBy = [];
   if (options.sortBy && options.sortBy.length > 0) {
     apiSortBy = options.sortBy.map((sort) =>
@@ -458,24 +445,22 @@ async function loadItems(options) {
   }
 
   try {
-    // ✅ Pure Server-Side: Always use backend API for search, filter, sort, and pagination
     const data = await userStore.getUsers(
-      "", // role filter (empty = all roles)
-      "", // status filter (empty = all statuses)
+      "", // role
+      "", // status
       {
         page: options.page,
         itemsPerPage: options.itemsPerPage,
         sortBy: apiSortBy,
-        search: search.value, // Backend handles search query
+        search: search.value,
       }
     );
-
-    users.value = data.items;
-    totalUsers.value = data.totalItems;
+    usersData.results = data.items;
+    usersData.totalItems = data.totalItems;
   } catch (err) {
     console.error("Failed to load users:", err);
-    users.value = [];
-    totalUsers.value = 0;
+    usersData.results = [];
+    usersData.totalItems = 0;
   } finally {
     loading.value = false;
   }
@@ -496,7 +481,7 @@ function openNewUserDialog() {
 }
 
 function editItem(item) {
-  editedIndex.value = users.value.findIndex((u) => u.id === item.id);
+  editedIndex.value = usersData.results.findIndex((u) => u.id === item.id);
   editedUser.value = { ...defaultUser, ...item, photoFile: null };
   infoShow.value = false;
   dialog.value = true;
@@ -581,7 +566,7 @@ async function save() {
 
 // Export functionality
 const exportData = (format) => {
-  const data = users.value.map((user) => ({
+  const data = usersData.results.map((user) => ({
     "Full Name": `${user.first_name || ""} ${user.last_name || ""}`.trim(),
     Email: user.email,
     Role: user.role,
@@ -619,35 +604,40 @@ const exportData = (format) => {
   }
 };
 
-// Sort functionality - delegated to server-side
+// Sort functionality
 const currentSortValue = ref("name-asc");
-const handleSort = async (sortValue) => {
+const handleSort = (sortValue) => {
   currentSortValue.value = sortValue;
+  const sorted = [...usersData.results];
 
-  // Map sort value to API sortBy format
-  let sortBy = [];
   switch (sortValue) {
     case "name-asc":
-      sortBy = [{ key: "full_name", order: "asc" }];
+      sorted.sort((a, b) => {
+        const nameA = `${a.first_name || ""} ${a.last_name || ""}`.trim();
+        const nameB = `${b.first_name || ""} ${b.last_name || ""}`.trim();
+        return nameA.localeCompare(nameB);
+      });
       break;
     case "name-desc":
-      sortBy = [{ key: "full_name", order: "desc" }];
+      sorted.sort((a, b) => {
+        const nameA = `${a.first_name || ""} ${a.last_name || ""}`.trim();
+        const nameB = `${b.first_name || ""} ${b.last_name || ""}`.trim();
+        return nameB.localeCompare(nameA);
+      });
       break;
     case "date-desc":
-      sortBy = [{ key: "created_at", order: "desc" }];
+      sorted.sort(
+        (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      );
       break;
     case "date-asc":
-      sortBy = [{ key: "created_at", order: "asc" }];
+      sorted.sort(
+        (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)
+      );
       break;
   }
 
-  // Update table options and reload with server-side sorting
-  tableOptions.sortBy = sortBy;
-  await loadItems({
-    page: tableOptions.page,
-    itemsPerPage: tableOptions.itemsPerPage,
-    sortBy: sortBy,
-  });
+  usersData.results = sorted;
 };
 
 // Initial load to populate table

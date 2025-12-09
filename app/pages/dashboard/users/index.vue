@@ -1,12 +1,15 @@
 <template>
-    <div>
-        <UserTable />
-    </div>
+  <div>
+    <UserTable />
+  </div>
 </template>
 
 <script setup>
-import UserTable from '@/components/dashboards/User/Table.vue';
+import { pagePermission } from "@/utils/permissions";
+import UserTable from "@/components/dashboards/User/Table.vue";
+
 definePageMeta({
-    middleware: ['auth']
+  middleware: ["auth", "permission"],
+  permission: pagePermission.users.view,
 });
 </script>
