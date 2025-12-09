@@ -50,9 +50,9 @@ const deletedItem = ref(null); // ← Will be removed, use editedItem instead
 
 const formTitle = computed(() => {
     if (editedIndex.value === -1) {
-        return props.status === 'eksternal' ? 'Add End User' : 'Add Client';
+        return props.status === 'eksternal' ? 'Create New End User' : 'Create New Client';
     }
-    return props.status === 'eksternal' ? 'Edit End User' : 'Edit Client';
+    return props.status === 'eksternal' ? 'Update End User Information' : 'Update Client Information';
 });
 
 const status = ref(props.status);
@@ -493,41 +493,48 @@ const handleSort = (sortValue) => {
         </div>
 
         <!-- Dialog: Add/Edit Form -->
-        <v-dialog v-model="dialog" max-width="1000px" persistent>
-            <v-card class="rounded-xl">
-                <v-card-title class="px-6 py-4 border-b border-gray-200">
-                    <span class="text-lg font-semibold">{{ formTitle }}</span>
-                </v-card-title>
-                
+        <v-overlay
+            v-model="dialog"
+            class="d-flex justify-end align-end"
+            width="83%"
+            max-width="83%"
+            persistent
+            transition="dialog-bottom-transition"
+            scrim="rgba(0,0,0,0.4)"
+        >
+            <v-card class="rounded-xl" style="border-radius: 20px 20px 0 0; margin: 0;">
                 <v-card-text class="px-6 py-6">
                     <form @submit.prevent="save" enctype="multipart/form-data">
                         <DashboardsClientForm
                             :editedItem="editedItem"
                             @update:editedItem="updateEditedItem"
                         />
+                        <v-card-actions class="px-6 py-4 border-t border-gray-200">
+                            <div class="text-sm font-medium text-gray-800">{{formTitle}}</div>
+                            <v-spacer />
+                            <v-btn
+                                variant="outlined"
+                                color="grey-darken-1"
+                                rounded="lg"
+                                @click="close"
+                            >
+                                Cancel
+                            </v-btn>
+                            <v-btn
+                                variant="flat"
+                                color="grey-darken-1"
+                                rounded="lg"
+                                :style="{ background:'#1e1e1e', color:'#fff', minWidth: '150px' }"
+                                @click="save"
+                            >
+                                Save {{ status === 'eksternal' ? 'End User' : 'Client'}}
+                            </v-btn>
+                        </v-card-actions>
                     </form>
                 </v-card-text>
 
-                <v-card-actions class="px-6 py-4 border-t border-gray-200">
-                    <v-spacer />
-                    <v-btn
-                        variant="outlined"
-                        color="grey-darken-1"
-                        @click="close"
-                    >
-                        Cancel
-                    </v-btn>
-                    <v-btn
-                        variant="flat"
-                        color="grey-darken-1"
-                        :style="{ background:'#1e1e1e', color:'#fff'}"
-                        @click="save"
-                    >
-                        Save
-                    </v-btn>
-                </v-card-actions>
             </v-card>
-        </v-dialog>
+        </v-overlay>
 
         <!-- Delete Confirmation Dialog -->
         <DashboardsFormsDeleteConfirm
@@ -535,6 +542,7 @@ const handleSort = (sortValue) => {
             @update:showModal="dialogDelete = $event"
             :closeAction="closeDelete"
             :deleteAction="deleteItemConfirm"
+            :title="status === 'eksternal' ? 'End User' : 'Client'"
         />
     </div>
 </template>

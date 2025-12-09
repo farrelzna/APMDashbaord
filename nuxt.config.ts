@@ -33,7 +33,7 @@ export default defineNuxtConfig({
 
   modules: [
     "@nuxtjs/tailwindcss",
-    "@formkit/auto-animate/nuxt",    
+    "@formkit/auto-animate/nuxt",
     [
       "@pinia/nuxt",
       {

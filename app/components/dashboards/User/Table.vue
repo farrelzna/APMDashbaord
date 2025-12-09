@@ -6,7 +6,7 @@
             <div class="flex flex-col gap-4">
                 <!-- Header Section -->
                 <SharedDataTableHeader
-                    :search="search"
+                    v-model:search="search"
                     search-placeholder="Search users..."
                     :current-page="tableOptions.page"
                     :items-per-page="tableOptions.itemsPerPage"
@@ -189,41 +189,48 @@
         </div>
 
         <!-- Dialog: Add/Edit Form -->
-        <v-dialog v-model="dialog" max-width="1000px" persistent>
+        <v-overlay 
+            v-model="dialog" 
+            class="d-flex justify-end align-end"
+            width="83%"
+            max-width="83%"
+            persistent
+            transition="dialog-bottom-transition"
+            scrim="rgba(0,0,0,0.4)"
+        >
             <v-card class="rounded-xl">
-                <v-card-title class="px-6 py-4 border-b border-gray-200">
-                    <span class="text-lg font-semibold">{{ formTitle }}</span>
-                </v-card-title>
-                
                 <v-card-text class="px-6 py-6">
                     <UserForm 
                         ref="userFormCompRef" 
                         v-model="editedUser"
                         @update:potential-validity="isFormPotentiallyValid = $event" 
                     />
+                    <v-card-actions class="px-6 py-4 border-t border-gray-200">
+                        <div class="text-sm font-medium text-gray-800">{{ formTitle }}</div>
+                        <v-spacer />
+                        <v-btn
+                            variant="outlined"
+                            color="grey-darken-1"
+                            rounded="lg"
+                            @click="close"
+                        >
+                            Cancel
+                        </v-btn>
+                        <v-btn
+                            variant="flat"
+                            :style="{ background:'#1e1e1e', color:'#fff', minWidth: '150px'}"
+                            @click="save"
+                            :loading="saving"
+                            :disabled="!isFormPotentiallyValid || saving"
+                            rounded="lg"
+                        >
+                            Save
+                        </v-btn>
+                    </v-card-actions>
                 </v-card-text>
 
-                <v-card-actions class="px-6 py-4 border-t border-gray-200">
-                    <v-spacer />
-                    <v-btn
-                        variant="outlined"
-                        color="grey-darken-1"
-                        @click="close"
-                    >
-                        Cancel
-                    </v-btn>
-                    <v-btn
-                        variant="flat"
-                        :style="{ background:'#1e1e1e', color:'#fff'}"
-                        @click="save"
-                        :loading="saving"
-                        :disabled="!isFormPotentiallyValid || saving"
-                    >
-                        Save
-                    </v-btn>
-                </v-card-actions>
             </v-card>
-        </v-dialog>
+        </v-overlay>
 
         <!-- Delete Confirmation Dialog -->
         <UserDeleteConfirm 
@@ -378,18 +385,54 @@ async function loadItems(options) {
     }
 
     try {
-        const data = await userStore.getUsers(
-            '', // role
-            '', // status
-            {
-            page: options.page,
-            itemsPerPage: options.itemsPerPage,
-            sortBy: apiSortBy,
-            search: search.value,
+        if (search.value && typeof userStore.getAll === 'function') {
+            const all = await userStore.getAll();
+            const normalized = Array.isArray(all) ? all.map(u => ({
+                ...u,
+                full_name: [u.first_name, u.last_name].filter(Boolean).join(' ')
+            })) : [];
+            const q = String(search.value).toLowerCase();
+            const filtered = normalized.filter(u => {
+                return (
+                    (u.full_name || '').toLowerCase().includes(q) ||
+                    (u.email || '').toLowerCase().includes(q) ||
+                    (u.username || '').toLowerCase().includes(q) ||
+                    (u.role || '').toLowerCase().includes(q)
+                );
+            });
+
+            // Apply client-side sort if any
+            let sorted = filtered;
+            if (apiSortBy.length > 0) {
+                const s = apiSortBy[0];
+                const key = s.key;
+                const dir = s.order === 'desc' ? -1 : 1;
+                sorted = [...filtered].sort((a, b) => {
+                    const av = (a[key] ?? '').toString().toLowerCase();
+                    const bv = (b[key] ?? '').toString().toLowerCase();
+                    if (av < bv) return -1 * dir;
+                    if (av > bv) return 1 * dir;
+                    return 0;
+                });
             }
-        );
-        users.value = data.items;
-        totalUsers.value = data.totalItems;
+
+            totalUsers.value = sorted.length;
+            const start = (tableOptions.page - 1) * tableOptions.itemsPerPage;
+            users.value = sorted.slice(start, start + tableOptions.itemsPerPage);
+        } else {
+            const data = await userStore.getUsers(
+                '', // role
+                '', // status
+                {
+                page: options.page,
+                itemsPerPage: options.itemsPerPage,
+                sortBy: apiSortBy,
+                search: search.value,
+                }
+            );
+            users.value = data.items;
+            totalUsers.value = data.totalItems;
+        }
     } catch (err) {
         console.error("Failed to load users:", err);
         users.value = [];

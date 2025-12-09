@@ -4,6 +4,7 @@ import { Menu2Icon, BellRingingIcon } from 'vue-tabler-icons';
 import { useUserStore } from '@/stores/User';
 import { onMounted } from 'vue';
 import { useAutoAnimate } from '@formkit/auto-animate/vue';
+import { useDisplay } from 'vuetify';
 
 const sidebarMenu = shallowRef(sidebarItems);
 const sDrawer = ref(true);
@@ -14,6 +15,7 @@ const [profileRef] = useAutoAnimate();
 const rail = ref(false);
 const isDragging = ref(false);
 const startX = ref(0);
+const { mdAndDown } = useDisplay();
 
 // Fetch user data on mount (was previously conditional on user ref existence, causing early access issues)
 onMounted(() => {
@@ -53,6 +55,11 @@ const handleMouseUp = () => {
     cleanupListeners();
 };
 
+watch(mdAndDown, value => {
+    if (value) rail.value = true;
+    else rail.value = false;
+});
+
 const cleanupListeners = () => {
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
@@ -66,6 +73,8 @@ const cleanupListeners = () => {
         app
         class="leftSidebar"
         elevation="0"
+        permanent
+        :mobile-breakpoint="0"
         :rail="rail"
         :width="rail ? 80 : 270"
     >
